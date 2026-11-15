@@ -16,8 +16,10 @@ const MIME = {
   '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.map': 'application/json',
 };
 
-export function createServer({ manager, token, webDir, capabilities, push, latest, name = os.hostname(), version = '1.0.0' }) {
+export function createServer({ manager, token, resetToken, webDir, capabilities, push, latest, name = os.hostname(), version = '1.0.0' }) {
   const fails = new Map(); // ip -> { count, resetAt }
+  // `token` là chuỗi cố định, hoặc hàm trả token hiện hành (token đổi được khi server đang chạy).
+  let currentToken = typeof token === 'function' ? token : () => token;
 
   function checkAuth(req) {
     const ip = req.socket.remoteAddress || '';
@@ -25,7 +27,7 @@ export function createServer({ manager, token, webDir, capabilities, push, lates
     const header = req.headers.authorization || '';
     const given = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     const a = crypto.createHash('sha256').update(given).digest();
-    const b = crypto.createHash('sha256').update(token).digest();
+    const b = crypto.createHash('sha256').update(String(currentToken())).digest();
     // Token đúng luôn được vào: một thiết bị khác cùng IP đoán sai không khoá được người dùng thật.
     if (given && crypto.timingSafeEqual(a, b)) return;
     if (fails.size > 1000) for (const [k, x] of fails) if (x.resetAt < now) fails.delete(k);
@@ -89,6 +91,20 @@ export function createServer({ manager, token, webDir, capabilities, push, lates
       if (!push) throw new HttpError(501, t('Máy chủ này không hỗ trợ.', 'This server does not support it.'));
       const body = await readJson(req);
       return send(res, 200, parts[1] === 'register' ? push.register(body) : push.unregister(body.token));
+    }
+
+    // Đổi token: token cũ hết hiệu lực ngay, mọi thiết bị khác phải thêm lại máy chủ. Thiết bị vừa gọi nhận
+    // token mới trong câu trả lời nên không bị văng ra.
+    if (parts[0] === 'token' && parts[1] === 'reset' && method === 'POST') {
+      if (!resetToken) throw new HttpError(501, t('Máy chủ này không hỗ trợ.', 'This server does not support it.'));
+      const body = await readJson(req);
+      let fresh;
+      try { fresh = resetToken(); } catch (err) { throw new HttpError(409, String(err?.message || err)); }
+      if (typeof token !== 'function') currentToken = () => fresh;
+      // Các điện thoại khác không còn quyền thì cũng thôi nhận thông báo.
+      push?.keepOnly(typeof body.keepPush === 'string' ? body.keepPush : '');
+      console.log(t('Token đã được đổi. Các thiết bị khác phải thêm lại máy chủ (wa qr).', 'The token was changed. Other devices must add this server again (wa qr).'));
+      return send(res, 200, { token: fresh });
     }
 
     if (parts[0] === 'info' && method === 'GET') {

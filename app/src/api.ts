@@ -41,7 +41,7 @@ export type Pending = {
 
 export type PollResult = {
   session: Session; events: ChatEvent[]; partial: string; thinking?: string; pending: Pending | null;
-  v: number; epoch: number; reset: boolean; limits?: Limits; queued?: string[];
+  v: number; epoch: number; reset: boolean; limits?: Limits; queued?: string[]; queuedSent?: number;
   activity?: { kind: 'starting' | 'thinking' | 'writing' | 'tool' | 'working'; name?: string } | null; runningMs?: number;
 };
 
@@ -94,10 +94,10 @@ export function parseAddress(input: string, fallbackPort = 7433): { host: string
 }
 
 /**
- * Phiên bản server thấp nhất mà bản app này cần để mọi tính năng chạy đúng (hàng chờ tin nhắn, dòng trạng thái,
- * xem suy nghĩ). Tăng số này mỗi khi app bắt đầu dựa vào một thay đổi mới ở server.
+ * Phiên bản server thấp nhất mà bản app này cần để mọi tính năng chạy đúng (gửi tin giữa lượt, dòng trạng thái,
+ * xem suy nghĩ, đổi token). Tăng số này mỗi khi app bắt đầu dựa vào một thay đổi mới ở server.
  */
-export const MIN_SERVER = '1.0.4';
+export const MIN_SERVER = '1.0.6';
 
 /** So hai số phiên bản dạng "1.2.3": âm nếu a cũ hơn b. */
 export function compareVersions(a: string, b: string): number {
@@ -241,6 +241,8 @@ export class Api {
   pushUnregister(token: string) { return this.req<{ ok: boolean; devices: number }>('POST', '/push/unregister', { token }); }
   send(id: string, text: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/messages`, { text }); }
   interrupt(id: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/interrupt`); }
+  /** Đổi token của máy chủ. `keepPush`: mã thông báo đẩy của máy này, để nó vẫn nhận thông báo. */
+  resetToken(keepPush?: string) { return this.req<{ token: string }>('POST', '/token/reset', { keepPush }); }
   clearQueue(id: string) { return this.req<{ session: Session }>('DELETE', `/sessions/${id}/queue`); }
   permission(id: string, body: { requestId: string; decision: 'allow' | 'allow_always' | 'deny'; message?: string; answers?: Record<string, string> }) {
     return this.req<{ session: Session }>('POST', `/sessions/${id}/permission`, body);

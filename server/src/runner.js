@@ -6,19 +6,47 @@ import { t } from './lang.js';
  * Chạy một lượt chat bằng Claude Agent SDK và đổi các message của SDK
  * thành sự kiện gọn cho app. Quyền chạy tool được hỏi qua `askPermission`,
  * giống cách extension VS Code hỏi.
+ *
+ * Tin gửi giữa lượt: `onInject(fn)` trao cho bên gọi hàm `fn(text)`. Gọi nó trong lúc Claude đang làm việc thì
+ * tin được đưa thẳng vào lượt đang chạy; Claude đọc nó ở bước kế tiếp (sau khi tool đang chạy xong), hoặc ngay
+ * sau câu trả lời nếu lượt vừa hết. `fn` trả false khi không còn nhận được nữa. Khi Claude thật sự đã nhận tin,
+ * runner phát sự kiện `delivered` (count = số tin, theo thứ tự đã gửi).
  */
-export async function claudeRunner({ text, cwd, resume, mode, model, signal, onEvent, askPermission }) {
+export async function claudeRunner({ text, cwd, resume, mode, model, signal, onEvent, askPermission, onInject }) {
   const abortController = new AbortController();
   if (signal.aborted) abortController.abort();
   signal.addEventListener('abort', () => abortController.abort(), { once: true });
 
-  // canUseTool cần input dạng stream; giữ stream mở tới khi lượt kết thúc.
-  let finish;
-  const finished = new Promise((resolve) => { finish = resolve; });
+  // canUseTool cần input dạng stream; giữ stream mở tới khi lượt kết thúc. Cũng qua stream này mà tin gửi
+  // giữa lượt tới được Claude.
+  const outgoing = [text];
+  let wake = null;
+  let closed = false;
+  const close = () => { closed = true; wake?.(); };
   async function* input() {
-    yield { type: 'user', message: { role: 'user', content: text }, parent_tool_use_id: null };
-    await finished;
+    while (true) {
+      while (outgoing.length) {
+        yield { type: 'user', message: { role: 'user', content: outgoing.shift() }, parent_tool_use_id: null };
+      }
+      if (closed) return;
+      await new Promise((resolve) => { wake = resolve; });
+      wake = null;
+    }
   }
+  // Chỉ nhận tin giữa lượt khi Claude Code có báo trạng thái (đang chạy / đã rảnh): thiếu tín hiệu đó thì không
+  // biết lượt đã hết thật chưa, tin gửi sát lúc kết thúc có thể rơi mất.
+  let stateSeen = false;
+  const waiting = []; // tin đã đưa vào mà Claude chưa nhận; mỗi mục { boundary }
+  onInject?.((more) => {
+    if (closed || !stateSeen || signal.aborted || abortController.signal.aborted) return false;
+    outgoing.push(more);
+    waiting.push({ boundary: false });
+    wake?.();
+    return true;
+  });
+  // Claude nhận tin chèn ở ranh giới giữa hai bước (tool vừa xong, hoặc lượt mới bắt đầu); yêu cầu gửi lên model
+  // ngay sau ranh giới đó mới chứa tin.
+  const boundary = () => { for (const w of waiting) w.boundary = true; };
 
   const options = {
     cwd,
@@ -28,6 +56,7 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
     // dần, để app hiện được Claude đang nghĩ gì.
     thinking: { type: 'adaptive', display: 'summarized' },
     abortController,
+    env: { ...process.env, CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS: '1' },
     canUseTool: async (toolName, toolInput, ctx) => {
       const answer = await askPermission({
         toolName,
@@ -65,15 +94,45 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
   let partial = '';
   let thinking = ''; // bản tóm tắt suy nghĩ đang chạy ra của tin hiện tại
   let sawResult = false;
+  let costSoFar = 0; // total_cost_usd là số cộng dồn của cả tiến trình; mỗi result chỉ báo phần tăng thêm
+  let idleTimer = null;
+  let idle; // xong khi Claude đã rảnh và không còn tin nào đang trên đường tới
+  const idled = new Promise((resolve) => { idle = () => resolve(IDLE); });
+  let it;
   try {
     const q = query({ prompt: input(), options });
-    for await (const msg of q) {
+    it = q[Symbol.asyncIterator]();
+    while (true) {
+      const next = it.next();
+      next.catch(() => {}); // nếu mình rời vòng lặp vì đã rảnh, lỗi đến sau của lần đọc dở không được thành lỗi lạc
+      const step = await Promise.race([next, idled]);
+      if (step === IDLE || step.done) break;
+      const msg = step.value;
       if (msg.type === 'system' && msg.subtype === 'init') {
         onEvent({ type: 'init', claudeSessionId: msg.session_id, model: msg.model });
+      } else if (msg.type === 'system' && msg.subtype === 'session_state_changed') {
+        clearTimeout(idleTimer);
+        if (msg.state === 'running') {
+          const first = !stateSeen;
+          stateSeen = true;
+          boundary();
+          if (first) onEvent({ type: 'ready' });
+          else onEvent({ type: 'activity', kind: 'working' });
+        } else if (msg.state === 'idle' && sawResult) {
+          // Còn tin vừa đưa vào mà Claude chưa nhận: nó sẽ mở lượt mới ngay ("running"). Chờ một chút; không thấy
+          // thì kết thúc, bên gọi sẽ gửi lại các tin đó thành lượt sau.
+          if (waiting.length || outgoing.length) idleTimer = setTimeout(idle, 5000);
+          else break;
+        }
       } else if (msg.type === 'stream_event') {
         if (msg.parent_tool_use_id) continue; // bỏ qua chữ đang gõ của subagent
         const ev = msg.event;
-        if (ev.type === 'message_start') { partial = ''; thinking = ''; }
+        if (ev.type === 'message_start') {
+          partial = ''; thinking = '';
+          let count = 0;
+          while (waiting.length && waiting[0].boundary) { waiting.shift(); count++; }
+          if (count) onEvent({ type: 'delivered', count });
+        }
         if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && ev.delta.thinking) {
           thinking += ev.delta.thinking;
           onEvent({ type: 'thinking_partial', text: thinking });
@@ -107,6 +166,7 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
         if (!Array.isArray(content)) continue;
         for (const block of content) {
           if (block.type !== 'tool_result') continue;
+          if (!msg.parent_tool_use_id) boundary();
           onEvent({
             type: 'tool_result',
             toolId: block.tool_use_id,
@@ -118,12 +178,15 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
         onEvent({ type: 'limits', limits: readLimits(msg.rate_limit_info) });
       } else if (msg.type === 'result') {
         sawResult = true;
+        // Tin đã đưa vào mà tới giờ Claude chưa nhận thì nó mở lượt mới với tin đó ngay sau đây; có khi nó đi
+        // thẳng sang lượt mới mà không báo "rảnh" rồi "đang chạy".
+        boundary();
         const ok = msg.subtype === 'success' && !msg.is_error;
         onEvent({
           type: 'result',
           ok,
           text: ok ? '' : String(msg.result || (msg.errors || []).join('\n') || msg.subtype),
-          costUsd: msg.total_cost_usd ?? null,
+          costUsd: typeof msg.total_cost_usd === 'number' ? Math.max(0, msg.total_cost_usd - costSoFar) : null,
           durationMs: msg.duration_ms ?? null,
           turns: msg.num_turns ?? null,
         });
@@ -138,15 +201,21 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
             context: { percentage: ctx.percentage, totalTokens: ctx.totalTokens, maxTokens: ctx.maxTokens, model: ctx.model },
           });
         } catch { /* bỏ qua */ }
-        break;
+        if (typeof msg.total_cost_usd === 'number') costSoFar = Math.max(costSoFar, msg.total_cost_usd);
+        // Claude Code cũ không báo trạng thái: kết thúc ngay ở đây như trước (khi đó cũng không nhận tin giữa lượt).
+        if (!stateSeen) break;
       }
     }
   } finally {
-    finish();
+    clearTimeout(idleTimer);
+    close();
+    try { await it?.return?.(); } catch { /* tiến trình đã tắt */ }
   }
   if (!sawResult && !signal.aborted) throw new Error(t('Claude kết thúc mà không trả kết quả.', 'Claude ended without returning a result.'));
   if (signal.aborted && !sawResult) throw new Error('aborted');
 }
+
+const IDLE = Symbol('idle');
 
 /** Rút gọn thông tin giới hạn sử dụng của tài khoản: mỗi cửa sổ (5 giờ, 7 ngày…) một mục. */
 export function readLimits(info) {

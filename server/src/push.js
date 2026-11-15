@@ -59,6 +59,14 @@ export class Push {
     return { ok: true, devices: this.devices.length };
   }
 
+  /** Bỏ mọi thiết bị, trừ thiết bị có mã `keep` (dùng khi đổi token: các máy khác không còn quyền nữa). */
+  keepOnly(keep) {
+    const before = this.devices.length;
+    this.devices = this.devices.filter((d) => keep && d.token === keep);
+    if (this.devices.length !== before) this.#save();
+    return { ok: true, devices: this.devices.length };
+  }
+
   /**
    * Gửi một thông báo tới mọi thiết bị đã đăng ký. Không bao giờ ném lỗi: mất mạng hay Expo từ chối
    * không được ảnh hưởng tới lượt chat. Trả về số thông báo đã được Expo nhận.

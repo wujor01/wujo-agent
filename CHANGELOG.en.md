@@ -2,6 +2,16 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.6] - 2026-11-15
+
+### Changed
+
+- A message sent while Claude is working no longer waits for the turn to end: it goes straight into the running turn and Claude reads it at its next step (right after the current tool finishes), so a change of mind takes effect at once. The message stays in the waiting row until Claude has actually received it, then becomes a row in the history. If the turn is stopped before the message arrives, it is sent as the next turn.
+
+### Added
+
+- Change the token: the **Change token** button under ⚙ → Server, or the `wa token --reset` command. The old token stops working at once, with no server restart; the device that pressed the button gets the new token automatically, while other devices must scan the QR code again and stop receiving push notifications.
+
 ## [1.0.5] - 2026-11-15
 
 ### Added

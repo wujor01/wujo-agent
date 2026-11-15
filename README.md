@@ -102,6 +102,7 @@ Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → 
 - Nút **⚙** ở góc trên phải mở cài đặt session: model, chế độ quyền, mức sử dụng (ngữ cảnh, giới hạn 5 giờ và 7 ngày), MCP server.
 - Gõ `/` trong ô nhập để xem gợi ý lệnh của workspace (kể cả skill và lệnh riêng của dự án). `/mcp`, `/usage`, `/status` mở bảng cài đặt, `/model` mở bảng chọn model.
 - Chế độ quyền và model cũng đổi được ở dòng phía trên ô nhập.
+- Gửi tin trong lúc Claude đang làm việc: tin vào thẳng lượt đang chạy và Claude đọc nó ở bước kế tiếp, không phải chờ hết lượt.
 - Giữ lâu vào một session để gỡ khỏi app; lịch sử của Claude trên máy chủ không bị xoá.
 
 ## Dùng qua SSH
@@ -118,6 +119,7 @@ ssh may-chu wa list
 | `wa version` | in phiên bản đang cài và bản mới nhất |
 | `wa update` | cài bản mới nhất; sau đó chạy lại `wa serve` |
 | `wa token` | in token |
+| `wa token --reset` | đổi token mới; token cũ hết hiệu lực ngay, mọi thiết bị phải thêm lại máy chủ |
 | `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
 | `wa list` | liệt kê session đã mở qua hệ thống |
 | `wa new <thư-mục> [tiêu đề]` | tạo session |
@@ -151,6 +153,7 @@ Dữ liệu nằm ở `~/.claude-sessions` (`config.json`, `sessions.json`, `eve
 - Kết nối là HTTP thường. Qua Tailscale thì đã được mã hoá; trên LAN thì token đi dạng rõ, chỉ nên dùng ở mạng bạn tin.
 - Ai có token thì điều khiển được Claude Code trên máy này với quyền của bạn. Đừng mở cổng ra internet.
 - Không có chế độ bỏ qua hỏi quyền.
+- Nghi token bị lộ thì đổi ngay: `wa token --reset`, hoặc nút **Đổi token** trong ⚙ của app. Không đổi được khi token đặt bằng biến `CS_TOKEN`.
 
 ## Kiểm thử
 
@@ -163,6 +166,10 @@ Chạy thật với Claude (tốn một ít token):
 
 ```bash
 node scripts/smoke.mjs
+```
+
+```bash
+node scripts/smoke-inject.mjs
 ```
 
 ```bash

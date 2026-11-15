@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // CLI của WujoAgent (lệnh `wujoagent`, viết tắt `wa`). Dùng tại chỗ hoặc qua SSH: ssh may-chu wa list
 import readline from 'node:readline/promises';
-import { loadConfig } from '../src/config.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadConfig, resetToken } from '../src/config.js';
 
 const [cmd, ...args] = process.argv.slice(2);
 
@@ -11,6 +13,7 @@ const HELP = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ 
   wa version                        in phiên bản đang cài và bản mới nhất
   wa update                         cài bản mới nhất (sau đó chạy lại "wa serve")
   wa token                          in token để nhập vào app
+  wa token --reset                  đổi token mới; mọi thiết bị phải thêm lại máy chủ
   wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
   wa list                           liệt kê session
   wa new <thư-mục> [tiêu đề]        tạo session
@@ -113,9 +116,22 @@ async function main() {
       console.log('\nĐã cài xong. Server đang chạy vẫn là bản cũ cho tới khi bạn dừng nó và chạy lại "wa serve".');
       return;
     }
-    case 'token':
-      console.log(loadConfig().token);
+    case 'token': {
+      if (!args.includes('--reset')) return console.log(loadConfig().token);
+      let token;
+      try {
+        // Server đang chạy: nhờ nó đổi, để nó bỏ luôn các điện thoại đã đăng ký nhận thông báo.
+        ({ token } = await api('POST', '/token/reset', {}));
+      } catch (err) {
+        if (!/Không nối được server/.test(err.message)) throw err;
+        const cfg = loadConfig();
+        token = resetToken(cfg.dir);
+        fs.rmSync(path.join(cfg.dir, 'devices.json'), { force: true });
+      }
+      console.log(`Token mới: ${token}`);
+      console.log('Token cũ hết hiệu lực ngay. Trên điện thoại, thêm lại máy chủ: chạy "wa qr" rồi quét mã.');
       return;
+    }
     case 'qr': {
       const cfg = loadConfig();
       const { printQr } = await import('../src/qr.js');

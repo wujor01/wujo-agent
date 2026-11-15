@@ -7,6 +7,7 @@ import {
   Api, Capabilities, ChatEvent, Limits, Mode, Pending, PollResult, Server, Session, matchCommands, timeUntil, ServerVersion, serverVersion,
 } from '../api';
 import { disablePush, enablePush, pushSupported, setOpenSession } from '../push';
+import { confirm } from './Servers';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button, Header, KeyboardShift, mono, useTheme, ServerVersionNotice,
@@ -398,7 +399,8 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   useEffect(() => { api.info().then((i) => setVersion(serverVersion(i))).catch(() => {}); }, [api]);
   const [activity, setActivity] = useState<PollResult['activity']>(null);
   const [started, setStarted] = useState(0); // thời điểm lượt hiện tại bắt đầu, quy về đồng hồ của điện thoại
-  const [queued, setQueued] = useState<string[]>([]); // tin đã gửi trong lúc Claude bận, đang chờ lượt kế tiếp
+  const [queued, setQueued] = useState<string[]>([]); // tin đã gửi trong lúc Claude bận mà Claude chưa nhận
+  const [queuedSent, setQueuedSent] = useState(0); // trong đó, số tin đã nằm trong lượt đang chạy (Claude đọc ở bước kế tiếp)
 
   // Model, lệnh gạch chéo và MCP server dùng được trong workspace này.
   async function loadCaps(fresh: boolean) {
@@ -438,6 +440,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
           setSession(out.session); setPartial(out.partial); setThinking(out.thinking || ''); setPending(out.pending);
           if (out.limits) setLimits(out.limits);
           setQueued(out.queued || []);
+          setQueuedSent(out.queuedSent || 0);
           setActivity(out.activity || null);
           setStarted(out.runningMs ? Date.now() - out.runningMs : 0);
           setOffline(''); setLoaded(true);
@@ -495,6 +498,28 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const [permHidden, setPermHidden] = useState(false);
   const pendingId = pending?.requestId;
   useEffect(() => { setPermHidden(false); if (pendingId) Keyboard.dismiss(); }, [pendingId]);
+
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [tokenNote, setTokenNote] = useState<{ ok: boolean; text: string } | null>(null);
+  function resetToken() {
+    confirm(
+      tr('Đổi token?', 'Change the token?'),
+      tr('Token cũ hết hiệu lực ngay. Máy này được cập nhật token mới tự động; mọi thiết bị khác phải thêm lại máy chủ (quét lại mã QR).',
+        'The old token stops working at once. This device gets the new token automatically; every other device must add the server again (scan the QR code again).'),
+      async () => {
+        setTokenBusy(true); setTokenNote(null);
+        try {
+          const out = await api.resetToken(server.pushToken);
+          onServerChange({ ...server, token: out.token });
+          setTokenNote({ ok: true, text: tr('Đã đổi token. Thiết bị khác cần quét lại mã QR (chạy "wa qr" trên máy tính).', 'Token changed. Other devices need to scan the QR code again (run "wa qr" on the computer).') });
+        } catch (e: any) {
+          setTokenNote({ ok: false, text: e?.message || tr('Không đổi được token.', 'Could not change the token.') });
+        } finally {
+          setTokenBusy(false);
+        }
+      },
+    );
+  }
 
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
@@ -615,14 +640,18 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         <View style={[s.queued, { borderTopColor: t.border, backgroundColor: t.card }]}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ color: t.sub, fontSize: 12, fontWeight: '700' }}>
-              {tr(`${queued.length} tin chờ gửi khi Claude xong`, `${queued.length} ${queued.length === 1 ? 'message' : 'messages'} queued until Claude finishes`)}
+              {queuedSent >= queued.length
+                ? tr('Claude sẽ đọc ở bước kế tiếp', 'Claude will read this at its next step')
+                : tr(`${queued.length} tin chờ gửi khi Claude xong`, `${queued.length} ${queued.length === 1 ? 'message' : 'messages'} queued until Claude finishes`)}
             </Text>
             {queued.map((q, i) => (
               <Text key={i} numberOfLines={2} style={{ color: t.text, fontSize: 14, marginTop: 3 }}>{q}</Text>
             ))}
           </View>
-          <Button small kind="plain" label={tr('Huỷ', 'Cancel')}
-            onPress={() => api.clearQueue(session.id).then(() => setQueued([])).catch((e) => setError(e.message))} />
+          {queuedSent < queued.length ? (
+            <Button small kind="plain" label={tr('Huỷ', 'Cancel')}
+              onPress={() => api.clearQueue(session.id).catch((e) => setError(e.message))} />
+          ) : null}
         </View>
       ) : null}
       {error ? <Text style={[s.banner, { color: t.danger, borderColor: t.border }]}>{error}</Text> : null}
@@ -797,6 +826,14 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
             {version?.version ? ` · ${tr('phiên bản', 'version')} ${version.version}` : ''}
             {version && !version.tooOld && !version.updatable && version.latest ? ` (${tr('mới nhất', 'latest')})` : ''}
           </Text>
+          <Text style={{ color: t.sub, fontSize: 13, marginTop: 6, marginBottom: 8 }}>
+            {tr('Nghi token bị lộ (ai đó chụp được mã QR)? Đổi token để chặn mọi thiết bị khác.', 'Think the token leaked (someone photographed the QR code)? Change it to lock every other device out.')}
+          </Text>
+          <View style={{ alignSelf: 'flex-start', marginBottom: 6 }}>
+            <Button small kind="plain" label={tokenBusy ? tr('Đang đổi…', 'Changing…') : tr('Đổi token', 'Change token')}
+              disabled={tokenBusy} onPress={resetToken} />
+          </View>
+          {tokenNote ? <Text style={{ color: tokenNote.ok ? t.ok : t.danger, fontSize: 13, marginBottom: 6 }}>{tokenNote.text}</Text> : null}
 
           <SectionTitle text="MCP server" />
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 12 }} /> : null}

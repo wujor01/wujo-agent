@@ -248,11 +248,13 @@ export class Manager {
     const meta = this.#meta(id);
     if (typeof text !== 'string' || !text.trim()) throw new HttpError(400, t('Tin nhắn rỗng.', 'The message is empty.'));
     const live = this.#live(id);
-    // Claude đang bận: xếp tin vào hàng chờ thay vì từ chối. Khi lượt hiện tại kết thúc (xong, lỗi hoặc bị
-    // dừng), các tin đang chờ được gộp lại và gửi thành lượt kế tiếp, giống cách Claude Code làm trên máy tính.
+    // Claude đang bận: đưa tin vào ngay lượt đang chạy, Claude đọc nó ở bước kế tiếp (như gõ thêm trong lúc
+    // Claude Code đang làm việc trên máy tính). Tin nằm ở hàng chờ tới khi Claude thật sự nhận; nếu lượt kết thúc
+    // (xong, lỗi hoặc bị dừng) mà tin chưa tới nơi thì các tin còn lại được gộp và gửi thành lượt kế tiếp.
     if (meta.status !== 'idle') {
       if (live.outbox.length >= 20) throw new HttpError(409, t('Đang có quá nhiều tin chờ gửi.', 'Too many messages are already queued.'));
-      live.outbox.push(text);
+      live.outbox.push({ text, sent: false });
+      this.#flushOutbox(live);
       this.#bump(id);
       return this.#view(meta);
     }
@@ -275,6 +277,7 @@ export class Manager {
       signal,
       onEvent: (ev) => this.#onRunnerEvent(id, ev),
       askPermission: (req, sig) => this.#askPermission(id, req, sig),
+      onInject: (fn) => { live.inject = fn; },
     });
 
     let failed = false;
@@ -290,6 +293,7 @@ export class Manager {
         this.#denyPending(live, 'Lượt chat đã kết thúc.');
         live.partial = '';
         live.abort = null;
+        live.inject = null;
         meta.status = 'idle';
         meta.updatedAt = Date.now();
         meta.syncedAt = Date.now();
@@ -298,7 +302,7 @@ export class Manager {
         // Có tin đang chờ: gửi tiếp ngay, kể cả khi lượt vừa rồi bị dừng (gõ lời sửa rồi bấm Dừng là để
         // lời sửa đó có hiệu lực liền). Chưa cần thông báo "đã xong" vì Claude còn làm tiếp.
         if (live.outbox.length) {
-          const next = live.outbox.splice(0).join('\n\n');
+          const next = live.outbox.splice(0).map((m) => m.text).join('\n\n');
           try { this.send(id, next); } catch (err) { this.#append(id, live, { type: 'error', text: String(err?.message || err) }); }
           return;
         }
@@ -313,12 +317,25 @@ export class Manager {
     return this.#view(meta);
   }
 
-  /** Bỏ các tin đang chờ gửi (chưa tới tay Claude). */
+  /** Bỏ các tin đang chờ mà chưa đưa cho Claude. Tin đã đưa vào lượt đang chạy thì không rút lại được. */
   clearQueue(id) {
     const meta = this.#meta(id);
     const live = this.#live(id);
-    if (live.outbox.length) { live.outbox = []; this.#bump(id); }
+    const keep = live.outbox.filter((m) => m.sent);
+    if (keep.length !== live.outbox.length) { live.outbox = keep; this.#bump(id); }
     return this.#view(meta);
+  }
+
+  /** Đưa các tin đang chờ vào lượt đang chạy, theo đúng thứ tự; dừng ở tin đầu tiên chưa đưa được. */
+  #flushOutbox(live) {
+    if (!live.inject) return;
+    for (const m of live.outbox) {
+      if (m.sent) continue;
+      let ok = false;
+      try { ok = live.inject(m.text) === true; } catch { /* runner đã đóng */ }
+      if (!ok) return;
+      m.sent = true;
+    }
   }
 
   interrupt(id) {
@@ -391,7 +408,9 @@ export class Manager {
       epoch: live.epoch,
       reset,
       limits: this.limits,
-      queued: live.outbox,
+      queued: live.outbox.map((m) => m.text),
+      // Số tin đầu hàng đã nằm trong lượt đang chạy, Claude sẽ đọc ở bước kế tiếp (không huỷ được nữa).
+      queuedSent: live.outbox.filter((m) => m.sent).length,
       // Claude đang làm gì và lượt này đã chạy bao lâu (tính ở máy chủ, để không lệch theo đồng hồ điện thoại).
       activity: meta.status === 'idle' ? null : (live.activity || { kind: 'working' }),
       runningMs: meta.status === 'idle' || !live.startedAt ? 0 : Date.now() - live.startedAt,
@@ -530,6 +549,19 @@ export class Manager {
     }
     // Tool chạy xong: Claude đọc kết quả rồi mới làm bước tiếp.
     if (ev.type === 'tool_result') live.activity = { kind: 'working' };
+    // Runner sẵn sàng nhận tin giữa lượt: đưa các tin đã xếp hàng từ trước đó.
+    if (ev.type === 'ready') {
+      this.#flushOutbox(live);
+      this.#bump(id);
+      return;
+    }
+    // Claude đã nhận các tin chèn giữa lượt: lúc này chúng mới thành một dòng trong lịch sử, đúng vị trí.
+    if (ev.type === 'delivered') {
+      for (let i = 0; i < ev.count && live.outbox[0]?.sent; i++) {
+        this.#append(id, live, { type: 'user', text: live.outbox.shift().text });
+      }
+      return;
+    }
     if (ev.type === 'partial') {
       live.partial = ev.text;
       this.#bump(id);

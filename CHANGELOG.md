@@ -2,6 +2,16 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.6] - 2026-11-15
+
+### Thay đổi
+
+- Tin gửi trong lúc Claude đang làm việc không còn phải chờ hết lượt: tin được đưa thẳng vào lượt đang chạy và Claude đọc nó ở bước kế tiếp (ngay sau khi tool đang chạy xong), nên đổi ý giữa chừng có hiệu lực liền. Tin nằm ở dòng chờ cho tới khi Claude thật sự nhận, rồi mới thành một dòng trong lịch sử. Nếu lượt bị dừng trước khi tin tới nơi, tin đó được gửi thành lượt kế tiếp.
+
+### Thêm
+
+- Đổi token: nút **Đổi token** trong ⚙ → Máy chủ, hoặc lệnh `wa token --reset`. Token cũ hết hiệu lực ngay, không phải khởi động lại server; máy vừa bấm nút được cập nhật token mới tự động, các thiết bị khác phải quét lại mã QR và thôi nhận thông báo đẩy.
+
 ## [1.0.5] - 2026-11-15
 
 ### Thêm

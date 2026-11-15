@@ -1,6 +1,6 @@
 {
   "name": "wujoagent",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "scripts": {
     "start": "node bin/wujoagent.js serve",
     "test": "node --test --test-timeout=60000"

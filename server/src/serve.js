@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig, localAddresses } from './config.js';
+import { loadConfig, localAddresses, resetToken, tokenSource } from './config.js';
 import { Store } from './store.js';
 import { Manager } from './manager.js';
 import { createServer } from './http.js';
@@ -26,7 +26,7 @@ export function startServer({ port, host, qr } = {}) {
   });
   const webDir = process.env.CS_WEB_DIR || path.resolve(here, '../web');
   const server = createServer({
-    manager, token: cfg.token, webDir, capabilities, push, version,
+    manager, token: tokenSource(cfg.dir), resetToken: () => resetToken(cfg.dir), webDir, capabilities, push, version,
     latest: () => latestVersion(cfg.dir),
   });
   const listenPort = port || cfg.port;
