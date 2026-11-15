@@ -313,6 +313,30 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const [answering, setAnswering] = useState(false);
   const [error, setError] = useState('');
   const listRef = useRef<FlatList<Row>>(null);
+
+  // Giữ danh sách chat dính đáy. `atBottom` ghi lại người dùng có đang ở cuối cuộc trò chuyện không:
+  // nếu có thì mọi lần khung chat đổi kích thước (bàn phím mở/đóng, ô nhập cao lên) hay có nội dung mới,
+  // danh sách cuộn lại xuống cuối. Nếu họ đã kéo lên đọc tin cũ thì để nguyên chỗ họ đang đọc.
+  const atBottom = useRef(true);
+  const stickToEnd = useCallback((animated = false) => {
+    if (atBottom.current) listRef.current?.scrollToEnd({ animated });
+  }, []);
+  useEffect(() => {
+    // Bàn phím mở làm khung chat thấp đi: phần cuối bị hụt lên trên nếu không cuộn lại.
+    // Ghi nhận vị trí TRƯỚC khi bàn phím lên (sau đó khoảng cách tới đáy đã bị cộng thêm chiều cao bàn phím).
+    let wasAtBottom = true;
+    const before = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => {
+      wasAtBottom = atBottom.current;
+    });
+    const after = Keyboard.addListener('keyboardDidShow', () => {
+      if (!wasAtBottom) return;
+      atBottom.current = true;
+      listRef.current?.scrollToEnd({ animated: true });
+      // Lần nữa sau khi bố cục ổn định, vì khung chat co lại theo hoạt ảnh của bàn phím.
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 120);
+    });
+    return () => { before.remove(); after.remove(); };
+  }, []);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [capsError, setCapsError] = useState('');
   const [capsLoading, setCapsLoading] = useState(false);
@@ -386,6 +410,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
     try {
       const r = await api.send(session.id, msg);
       setText(''); setSession(r.session);
+      atBottom.current = true;
     } catch (e: any) {
       setError(e.message); // giữ nguyên chữ đã gõ để gửi lại
     } finally {
@@ -478,7 +503,13 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         contentContainerStyle={{ paddingVertical: 10 }}
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+        onContentSizeChange={() => stickToEnd()}
+        onLayout={() => stickToEnd()}
+        scrollEventThrottle={64}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          atBottom.current = contentSize.height - layoutMeasurement.height - contentOffset.y < 80;
+        }}
         ListEmptyComponent={!loaded ? undefined : (
           <Text style={{ color: t.sub, textAlign: 'center', marginTop: 40, paddingHorizontal: 24 }}>
             {tr('Gõ tin nhắn đầu tiên để bắt đầu.', 'Type your first message to start.')}
