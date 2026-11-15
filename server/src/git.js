@@ -121,6 +121,25 @@ export async function gitInfo(cwd) {
   return info;
 }
 
+/**
+ * Đường dẫn thật của `p`. File có thể không còn (đã bị xoá khỏi repo): lấy đường dẫn thật của
+ * thư mục cha gần nhất còn tồn tại rồi nối phần còn lại vào.
+ */
+export function realPath(p) {
+  let current = path.resolve(p);
+  const rest = [];
+  for (;;) {
+    try {
+      return path.join(fs.realpathSync.native(current), ...rest);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return path.resolve(p);
+      rest.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
 const MAX_DIFF = 300 * 1024;
 
 /**
@@ -131,8 +150,10 @@ export async function gitDiff(cwd, file) {
   if (typeof file !== 'string' || !file.trim()) throw new HttpError(400, 'Thiếu tên file.');
   const top = await git(cwd, ['rev-parse', '--show-toplevel']);
   if (!top.ok) throw new HttpError(400, 'Thư mục này không phải git repo.');
-  const root = path.resolve(top.stdout.trim());
-  const abs = path.resolve(cwd, file.trim());
+  // So sánh trên đường dẫn thật: cùng một thư mục có thể được viết theo nhiều cách (tên ngắn 8.3 của
+  // Windows như RUNNER~1, symlink như /tmp → /private/tmp trên macOS), còn git luôn trả về dạng đầy đủ.
+  const root = realPath(top.stdout.trim());
+  const abs = realPath(path.resolve(cwd, file.trim()));
   const rel = path.relative(root, abs);
   if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) throw new HttpError(400, 'File nằm ngoài repo này.');
   const shown = rel.split(path.sep).join('/');

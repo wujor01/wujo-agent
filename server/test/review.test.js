@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { Store } from '../src/store.js';
 import { Manager } from '../src/manager.js';
 import { createServer } from '../src/http.js';
-import { gitInfo, gitDiff } from '../src/git.js';
+import { gitInfo, gitDiff, realPath } from '../src/git.js';
 import { readLimits } from '../src/runner.js';
 import { addLink, reachableAddresses } from '../src/qr.js';
 
@@ -341,4 +341,31 @@ test('link QR: token nằm sau dấu #, liệt kê mọi địa chỉ, địa ch
   assert.match(await res.text(), /TRANG-CHINH/);
   assert.deepEqual(reachableAddresses('127.0.0.1'), []);
   assert.deepEqual(reachableAddresses('100.64.0.10'), [{ kind: '', address: '100.64.0.10' }]);
+});
+
+test('git diff: thư mục viết theo tên ngắn 8.3 của Windows vẫn được nhận là trong repo', async (t) => {
+  // realPath: file không còn tồn tại vẫn ra đường dẫn thật của thư mục cha cộng phần còn lại
+  assert.equal(realPath(path.join(tmp, 'khong-co', 'a.txt')), path.join(fs.realpathSync.native(tmp), 'khong-co', 'a.txt'));
+
+  if (process.platform !== 'win32') return t.skip('chỉ Windows có tên ngắn 8.3');
+  const repo = path.join(tmp, 'repo-ten-dai-hon-tam-ky-tu');
+  const g = (...a) => execFileSync('git', a, { cwd: repo, stdio: 'pipe' });
+  fs.mkdirSync(repo);
+  g('init', '-b', 'main');
+  g('config', 'user.email', 't@example.com');
+  g('config', 'user.name', 'T');
+  g('config', 'core.autocrlf', 'false');
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'một\n');
+  g('add', '.');
+  g('commit', '-m', 'đầu');
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'hai\n');
+  // Hỏi Windows tên ngắn của thư mục; ổ đĩa tắt tên 8.3 thì trả lại nguyên tên dài.
+  const short = execFileSync('cmd', ['/d', '/c', 'for %I in (.) do @echo %~sI'], { cwd: repo, encoding: 'utf8' }).trim();
+  if (short.toLowerCase() === repo.toLowerCase()) return t.skip('ổ đĩa này không bật tên ngắn 8.3');
+  assert.ok(short.includes('~'), short);
+  const viaShort = await gitDiff(short, 'a.txt');
+  assert.ok(viaShort.diff.includes('+hai'), viaShort.diff);
+  assert.equal((await gitDiff(repo, path.join(short, 'a.txt'))).diff, viaShort.diff);
+  // chặn thoát repo vẫn còn hiệu lực khi dùng tên ngắn
+  await assert.rejects(gitDiff(short, '..\\web-old\\bi-mat.txt'), (e) => e.status === 400);
 });
