@@ -1,7 +1,11 @@
 import { lang, locale, tr } from './i18n';
 
 export type SortKey = 'activity' | 'modified' | 'name';
-export type Server = { id: string; name: string; host: string; port: number; token: string; root?: string; sort?: SortKey };
+export type Server = {
+  id: string; name: string; host: string; port: number; token: string; root?: string; sort?: SortKey;
+  /** Thông báo đẩy đã bật cho máy chủ này, và mã thiết bị đã đăng ký (để tắt được). */
+  push?: boolean; pushToken?: string;
+};
 
 export type Mode = 'default' | 'acceptEdits' | 'plan' | 'auto';
 export type Status = 'idle' | 'running' | 'waiting';
@@ -199,6 +203,11 @@ export class Api {
     return this.req<Capabilities>('GET', `/sessions/${id}/capabilities${fresh ? '?fresh=1' : ''}`, undefined, 40000);
   }
   remove(id: string) { return this.req<{ ok: boolean }>('DELETE', `/sessions/${id}`); }
+  session(id: string) { return this.req<{ session: Session }>('GET', `/sessions/${id}`); }
+  pushRegister(body: { token: string; tag: string; lang: string; platform: string }) {
+    return this.req<{ ok: boolean; devices: number }>('POST', '/push/register', body);
+  }
+  pushUnregister(token: string) { return this.req<{ ok: boolean; devices: number }>('POST', '/push/unregister', { token }); }
   send(id: string, text: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/messages`, { text }); }
   interrupt(id: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/interrupt`); }
   permission(id: string, body: { requestId: string; decision: 'allow' | 'allow_always' | 'deny'; message?: string; answers?: Record<string, string> }) {

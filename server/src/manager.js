@@ -23,9 +23,12 @@ export class HttpError extends Error {
  *   runner({ text, cwd, resume, mode, signal, onEvent, askPermission }) -> Promise<void>
  */
 export class Manager {
-  constructor({ store, runner, history }) {
+  constructor({ store, runner, history, notify }) {
     this.store = store;
     this.runner = runner;
+    // Gọi khi một lượt kết thúc hoặc Claude xin quyền mà không có app nào đang mở session đó
+    // (kind: 'done' | 'ask' | 'error'). serve.js nối cái này vào thông báo đẩy.
+    this.notify = notify || (() => {});
     // Nguồn đọc session Claude Code có sẵn trên máy; không có thì chỉ thấy session của hệ thống này.
     this.history = history || { list: async () => [], info: async () => null, events: async () => [] };
     this.sessions = new Map(); // id -> meta (lưu đĩa)
@@ -261,11 +264,13 @@ export class Manager {
       askPermission: (req, sig) => this.#askPermission(id, req, sig),
     });
 
+    let failed = false;
     Promise.resolve(run)
       .catch((err) => {
         if (!this.sessions.has(id)) return;
         const text = signal.aborted ? t('Đã dừng.', 'Stopped.') : t(`Lỗi: ${err?.message || err}`, `Error: ${err?.message || err}`);
         this.#append(id, live, { type: signal.aborted ? 'stopped' : 'error', text });
+        failed = !signal.aborted;
       })
       .finally(() => {
         if (!this.sessions.has(id)) return;
@@ -277,6 +282,12 @@ export class Manager {
         meta.syncedAt = Date.now();
         this.#save();
         this.#bump(id);
+        // Người dùng tự bấm Dừng thì không cần báo lại cho chính họ.
+        if (!signal.aborted) {
+          const last = live.events[live.events.length - 1];
+          const bad = failed || (last?.type === 'result' && !last.ok);
+          this.#notify(bad ? 'error' : 'done', meta, live);
+        }
       });
 
     return this.#view(meta);
@@ -310,7 +321,7 @@ export class Manager {
   /**
    * Long-poll: trả ngay nếu có gì mới so với (after, v), nếu không thì chờ tối đa waitMs.
    */
-  async poll(id, { after = 0, v = -1, epoch, waitMs = 25000 } = {}) {
+  async poll(id, { after = 0, v = -1, epoch, waitMs = 25000, signal } = {}) {
     const meta = this.#meta(id);
     const live = this.#live(id);
     // Mở màn chat (after=0): nếu session đã được chat tiếp ở nơi khác (VS Code, terminal) thì nạp lại.
@@ -328,11 +339,15 @@ export class Manager {
         function done() {
           clearTimeout(timer);
           live.waiters.delete(done);
+          signal?.removeEventListener('abort', done);
           resolve();
         }
         live.waiters.add(done);
+        // App đóng kết nối (bị đưa xuống nền, mất mạng): thôi chờ ngay, để session không bị coi là đang có người xem.
+        if (signal?.aborted) done(); else signal?.addEventListener('abort', done, { once: true });
       });
     }
+    if (!signal?.aborted) live.seenAt = Date.now();
     if (live.removed || !this.sessions.has(id)) throw new HttpError(404, t('Session đã bị xoá.', 'This session was removed.'));
     // Trong lúc chờ, lịch sử có thể đã được nạp lại bởi một client khác.
     checkEpoch();
@@ -372,6 +387,7 @@ export class Manager {
         version: 0,
         epoch: 0,
         waiters: new Set(),
+        seenAt: 0, // lần cuối một app hỏi xong session này
         abort: null,
         removed: false,
       };
@@ -405,6 +421,14 @@ export class Manager {
       // Không đọc được lịch sử thì vẫn dùng bản đang có, không chặn người dùng.
       console.error(`Không đồng bộ được lịch sử session ${meta.id}: ${err?.message || err}`);
     }
+  }
+
+  /** Báo ra ngoài, trừ khi có app đang mở session này (đang long-poll, hoặc vừa hỏi xong trong 3 giây). */
+  #notify(kind, meta, live) {
+    if (live.waiters.size > 0 || Date.now() - live.seenAt < 3000) return;
+    try {
+      Promise.resolve(this.notify(kind, { sessionId: meta.id, cwd: meta.cwd })).catch(() => {});
+    } catch { /* thông báo hỏng không được ảnh hưởng tới lượt chat */ }
   }
 
   #save() {
@@ -488,6 +512,7 @@ export class Manager {
       live.queue.push(entry);
       meta.status = 'waiting';
       this.#append(id, live, { type: 'permission_request', ...request });
+      this.#notify('ask', meta, live);
       signal?.addEventListener('abort', () => {
         const i = live.queue.indexOf(entry);
         if (i < 0) return; // đã được trả lời

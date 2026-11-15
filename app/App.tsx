@@ -9,6 +9,7 @@ import { Servers } from './src/screens/Servers';
 import { Workspaces } from './src/screens/Workspaces';
 import { Sessions } from './src/screens/Sessions';
 import { Chat } from './src/screens/Chat';
+import { PushData, onNotificationOpen, refreshPush } from './src/push';
 
 export default function App() {
   const t = useTheme();
@@ -43,6 +44,28 @@ export default function App() {
     [server?.host, server?.port, server?.token],
   );
 
+  // Bấm vào thông báo đẩy: mở đúng máy chủ và session trong thông báo.
+  const [fromPush, setFromPush] = useState<PushData | null>(null);
+  useEffect(() => onNotificationOpen(setFromPush), []);
+  useEffect(() => {
+    if (!fromPush || !servers) return;
+    setFromPush(null);
+    const target = servers.find((s) => s.id === fromPush.tag);
+    if (!target || !fromPush.sessionId) return;
+    new Api(target).session(fromPush.sessionId).then(({ session: found }) => {
+      setServerId(target.id); setWorkspace(null); setSession(found);
+    }).catch(() => { setSession(null); setWorkspace(null); setServerId(target.id); });
+  }, [fromPush, servers]);
+
+  // Mở một máy chủ đã bật thông báo: đăng ký lại mã thiết bị phòng khi nó đã đổi.
+  useEffect(() => {
+    if (!server || !api || !server.push) return;
+    refreshPush(api, server).then((token) => {
+      if (token && token !== server.pushToken) update((servers || []).map((s) => (s.id === server.id ? { ...s, pushToken: token } : s)));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [server?.id, server?.push]);
+
   function update(list: Server[]) {
     setServers(list);
     saveServers(list).catch(() => {});
@@ -70,7 +93,10 @@ export default function App() {
         incoming={incoming} onIncomingDone={() => setIncoming(null)} />
     );
   } else if (session) {
-    screen = <Chat key={session.id} api={api} session={session} onBack={() => setSession(null)} />;
+    screen = (
+      <Chat key={session.id} api={api} session={session} server={server} onBack={() => setSession(null)}
+        onServerChange={(next) => update(servers.map((s) => (s.id === next.id ? next : s)))} />
+    );
   } else if (workspace) {
     screen = <Sessions key={workspace.path} api={api} workspace={workspace} onBack={() => setWorkspace(null)} onOpen={setSession} />;
   } else {

@@ -8,15 +8,20 @@ import { claudeRunner } from './runner.js';
 import { claudeHistory } from './history.js';
 import { capabilities } from './models.js';
 import { printQr } from './qr.js';
+import { Push } from './push.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 export function startServer({ port, host, qr } = {}) {
   const cfg = loadConfig();
   const store = new Store(cfg.dir);
-  const manager = new Manager({ store, runner: claudeRunner, history: claudeHistory });
+  const push = new Push(cfg.dir);
+  const manager = new Manager({
+    store, runner: claudeRunner, history: claudeHistory,
+    notify: (kind, info) => push.send(kind, info),
+  });
   const webDir = process.env.CS_WEB_DIR || path.resolve(here, '../web');
-  const server = createServer({ manager, token: cfg.token, webDir, capabilities });
+  const server = createServer({ manager, token: cfg.token, webDir, capabilities, push });
   const listenPort = port || cfg.port;
   const listenHost = host || cfg.host;
 

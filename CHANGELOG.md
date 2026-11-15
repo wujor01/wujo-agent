@@ -13,6 +13,7 @@ Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản ti�
 
 - App tự chọn tiếng Việt hoặc tiếng Anh theo ngôn ngữ của máy; thông báo lỗi từ máy tính cũng theo ngôn ngữ đó.
 - Dòng `..` ở đầu danh sách thư mục để đi ra thư mục cha.
+- Thông báo đẩy (tuỳ chọn, tắt theo mặc định): báo khi Claude chạy xong hoặc cần duyệt trong lúc app không mở session đó. Thông báo chỉ ghi tên thư mục dự án. Cần bản app cài từ TestFlight hoặc file APK; hiện mới chạy trên iPhone.
 - Chế độ quyền **Tự động**: Claude tự duyệt các thao tác an toàn và chỉ hỏi khi không chắc.
 
 ### Sửa lỗi

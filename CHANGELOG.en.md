@@ -13,6 +13,7 @@ Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGEL
 
 - The app picks Vietnamese or English from the device language; error messages from the computer follow the same language.
 - A `..` row at the top of folder lists to go up to the parent folder.
+- Push notifications (optional, off by default): get notified when Claude finishes or needs approval while the app does not have that session open. A notification shows only the project folder name. Needs the app from TestFlight or the APK; iPhone only for now.
 - **Auto** permission mode: Claude approves safe actions itself and asks only when unsure.
 
 ### Fixed

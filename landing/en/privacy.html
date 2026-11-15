@@ -22,7 +22,7 @@
     <h1>Privacy policy</h1>
     <p class="date">Effective 15 November 2026</p>
 
-    <p><strong>In short: WujoAgent does not collect, store or send your data to us.</strong> The app is a remote control for Claude Code running on your own computer.</p>
+    <p><strong>In short: WujoAgent does not collect, store or send your data to us.</strong> The app is a remote control for Claude Code running on your own computer. The one exception is push notifications, which are off by default and described in their own section below.</p>
 
     <h2>Data the app keeps on your phone</h2>
     <ul>
@@ -32,13 +32,23 @@
     <p>This data stays in the app's storage on your phone. Uninstalling the app deletes it.</p>
 
     <h2>Data the app sends</h2>
-    <p>The app sends data only to the computers you added, at the address you typed or scanned. That includes the messages you type, your permission decisions, and requests to list folders, sessions and git state. We operate no server that receives this data.</p>
+    <p>Apart from optional push notifications, the app sends data only to the computers you added, at the address you typed or scanned. That includes the messages you type, your permission decisions, and requests to list folders, sessions and git state. We operate no server that receives this data.</p>
     <p>The WujoAgent software on your computer passes your messages to the Claude Code installation on that machine. How Claude Code handles data is governed by the Anthropic terms and policies you accepted when you started using Claude Code.</p>
+
+    <h2>Push notifications (optional)</h2>
+    <p>Push notifications are off by default. If you turn them on in a session's settings, your computer sends a notification when Claude finishes or needs your approval while the app does not have that session open.</p>
+    <ul>
+      <li><strong>Route:</strong> your computer sends the notification to the Expo push service, and Apple (APNs) or Google (FCM) delivers it to your phone. It does not pass through any server of ours.</li>
+      <li><strong>Content:</strong> one fixed sentence ("Claude has finished", "Claude is waiting for your approval" or "The turn ended with an error") and the project folder name. No messages, source code or Claude responses.</li>
+      <li><strong>Device token:</strong> to make delivery possible, the app gets a notification token from Expo and stores it on your computer. Turning notifications off deletes the token from that computer.</li>
+    </ul>
+    <p>Expo, Apple and Google handle notifications under their own policies.</p>
 
     <h2>Phone permissions</h2>
     <ul>
       <li><strong>Camera:</strong> used only to scan a QR code when you add a computer. Images are not stored or sent.</li>
       <li><strong>Local network:</strong> to reach a computer on the same Wi-Fi network or on Tailscale.</li>
+      <li><strong>Notifications:</strong> only if you turn push notifications on.</li>
     </ul>
 
     <h2>What we do not do</h2>

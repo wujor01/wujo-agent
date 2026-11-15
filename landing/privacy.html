@@ -22,7 +22,7 @@
     <h1>Chính sách quyền riêng tư</h1>
     <p class="date">Có hiệu lực từ ngày 15 tháng 11 năm 2026</p>
 
-    <p><strong>Tóm tắt: WujoAgent không thu thập, không lưu và không gửi dữ liệu của bạn về cho chúng tôi.</strong> App là một điều khiển từ xa cho Claude Code đang chạy trên máy tính của chính bạn.</p>
+    <p><strong>Tóm tắt: WujoAgent không thu thập, không lưu và không gửi dữ liệu của bạn về cho chúng tôi.</strong> App là một điều khiển từ xa cho Claude Code đang chạy trên máy tính của chính bạn. Ngoại lệ duy nhất là thông báo đẩy, tắt theo mặc định, mô tả ở mục riêng bên dưới.</p>
 
     <h2>Dữ liệu app lưu trên điện thoại</h2>
     <ul>
@@ -32,13 +32,23 @@
     <p>Những dữ liệu này chỉ nằm trong bộ nhớ của app trên điện thoại. Gỡ app là xoá hết.</p>
 
     <h2>Dữ liệu app gửi đi</h2>
-    <p>App chỉ gửi dữ liệu tới các máy tính mà bạn đã thêm, qua địa chỉ bạn nhập hoặc quét. Nội dung gồm tin nhắn bạn gõ, lựa chọn duyệt quyền và các yêu cầu xem thư mục, session, git. Chúng tôi không vận hành máy chủ nào nhận những dữ liệu này.</p>
+    <p>Ngoài thông báo đẩy tuỳ chọn, app chỉ gửi dữ liệu tới các máy tính mà bạn đã thêm, qua địa chỉ bạn nhập hoặc quét. Nội dung gồm tin nhắn bạn gõ, lựa chọn duyệt quyền và các yêu cầu xem thư mục, session, git. Chúng tôi không vận hành máy chủ nào nhận những dữ liệu này.</p>
     <p>Phần mềm WujoAgent trên máy tính của bạn chuyển tin nhắn cho Claude Code đã cài trên máy đó. Việc Claude Code xử lý dữ liệu tuân theo điều khoản và chính sách của Anthropic mà bạn đã đồng ý khi dùng Claude Code.</p>
+
+    <h2>Thông báo đẩy (tuỳ chọn)</h2>
+    <p>Thông báo đẩy tắt theo mặc định. Nếu bạn bật trong phần cài đặt của một session, máy tính của bạn sẽ gửi thông báo khi Claude chạy xong hoặc cần bạn duyệt, trong lúc app không mở session đó.</p>
+    <ul>
+      <li><strong>Đường đi:</strong> máy tính của bạn gửi thông báo tới dịch vụ đẩy của Expo, rồi Apple (APNs) hoặc Google (FCM) chuyển tới điện thoại. Không qua máy chủ nào của chúng tôi.</li>
+      <li><strong>Nội dung:</strong> một câu cố định ("Claude đã chạy xong", "Claude đang chờ bạn duyệt" hoặc "Lượt chat kết thúc với lỗi") và tên thư mục dự án. Không có tin nhắn, mã nguồn hay câu trả lời nào của Claude.</li>
+      <li><strong>Mã thiết bị:</strong> để gửi được, app lấy một mã thông báo từ Expo và lưu nó trên máy tính của bạn. Tắt thông báo là xoá mã khỏi máy tính đó.</li>
+    </ul>
+    <p>Expo, Apple và Google xử lý thông báo theo chính sách riêng của họ.</p>
 
     <h2>Quyền truy cập trên điện thoại</h2>
     <ul>
       <li><strong>Camera:</strong> chỉ dùng để quét mã QR khi thêm máy tính. Hình ảnh không được lưu hay gửi đi.</li>
       <li><strong>Mạng nội bộ:</strong> để kết nối tới máy tính trong cùng mạng Wi-Fi hoặc Tailscale.</li>
+      <li><strong>Thông báo:</strong> chỉ khi bạn bật thông báo đẩy.</li>
     </ul>
 
     <h2>Những thứ chúng tôi không làm</h2>

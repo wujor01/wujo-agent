@@ -83,7 +83,14 @@
           "backgroundColor": "#1B1A18"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": true,
+          "color": "#D97757"
+        }
+      ]
     ],
     "scheme": "wujoagent",
     "owner": "wujor01",

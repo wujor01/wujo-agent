@@ -190,7 +190,18 @@ WujoAgent is an independent product and is not affiliated with Anthropic. Claude
 
 ### Quyền riêng tư (App Privacy)
 
-Chọn **Data Not Collected**. App không có tài khoản, không phân tích, không quảng cáo; dữ liệu chỉ đi giữa điện thoại và máy tính của người dùng. Chi tiết ở `landing/privacy.html`.
+App không có tài khoản, không phân tích, không quảng cáo; nội dung trò chuyện chỉ đi giữa điện thoại và máy tính của người dùng. Chi tiết ở `landing/privacy.html`.
+
+Từ khi có thông báo đẩy, **bạn cần tự cân nhắc mục Device ID**: khi người dùng bật thông báo, app lấy một mã thông báo từ Expo và mã đó được dùng để gửi thông báo qua Expo và Apple/Google. Hai cách khai báo hợp lý:
+
+- **Data Not Collected**, nếu bạn coi mã thông báo chỉ là phương tiện kỹ thuật để chuyển thông báo theo yêu cầu của người dùng, không gắn với danh tính và không dùng cho mục đích nào khác.
+- **Identifiers → Device ID**, mục đích App Functionality, không dùng để theo dõi, không gắn với danh tính. Đây là cách khai báo thận trọng hơn.
+
+### Thông báo đẩy
+
+- iOS: lần build tương tác đầu tiên sau khi thêm thông báo, EAS hỏi có tạo khoá đẩy của Apple (APNs key) không; chọn có.
+- Android: cần một dự án Firebase cho `dev.wujo.wujoagent`, tải `google-services.json` về `app/`, khai báo `android.googleServicesFile` trong `app/app.json`, và tải khoá FCM V1 lên EAS (`npx eas-cli credentials -p android`). Chưa làm.
+- Thông báo không chạy trong Expo Go.
 
 ### Ảnh chụp màn hình
 

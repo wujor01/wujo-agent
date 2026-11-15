@@ -16,7 +16,7 @@ const MIME = {
   '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.map': 'application/json',
 };
 
-export function createServer({ manager, token, webDir, capabilities, name = os.hostname(), version = '1.0.0' }) {
+export function createServer({ manager, token, webDir, capabilities, push, name = os.hostname(), version = '1.0.0' }) {
   const fails = new Map(); // ip -> { count, resetAt }
 
   function checkAuth(req) {
@@ -84,6 +84,13 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
     }
     checkAuth(req);
 
+    // Điện thoại bật / tắt thông báo đẩy cho máy chủ này.
+    if (parts[0] === 'push' && method === 'POST' && (parts[1] === 'register' || parts[1] === 'unregister')) {
+      if (!push) throw new HttpError(501, t('Máy chủ này không hỗ trợ.', 'This server does not support it.'));
+      const body = await readJson(req);
+      return send(res, 200, parts[1] === 'register' ? push.register(body) : push.unregister(body.token));
+    }
+
     if (parts[0] === 'info' && method === 'GET') {
       return send(res, 200, { name, version, home: os.homedir(), platform: process.platform });
     }
@@ -132,8 +139,11 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
           return Number.isFinite(n) && url.searchParams.has(k) ? n : d;
         };
         const waitMs = Math.max(0, Math.min(num('wait', 25), 55)) * 1000;
+        // Kết nối đóng trước khi trả lời xong nghĩa là app đã rời đi.
+        const gone = new AbortController();
+        res.on('close', () => { if (!res.writableFinished) gone.abort(); });
         const out = await manager.poll(id, {
-          after: num('after', 0), v: num('v', -1), epoch: num('epoch', undefined), waitMs,
+          after: num('after', 0), v: num('v', -1), epoch: num('epoch', undefined), waitMs, signal: gone.signal,
         });
         if (res.destroyed) return;
         return send(res, 200, out);

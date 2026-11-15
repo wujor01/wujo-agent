@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, AppState, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
-import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, Session, matchCommands, timeUntil } from '../api';
+import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, Server, Session, matchCommands, timeUntil } from '../api';
+import { disablePush, enablePush, pushSupported, setOpenSession } from '../push';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Header, KeyboardShift, mono, useTheme } from '../ui';
 import { DiffSheet, SessionChange, sessionChanges } from '../Diff';
@@ -257,7 +258,9 @@ const MCP_LABEL: Record<string, string> = {
   pending: tr('đang kết nối', 'connecting'), disabled: tr('đã tắt', 'disabled'),
 };
 
-export function Chat({ api, session: initial, onBack }: { api: Api; session: Session; onBack: () => void }) {
+export function Chat({ api, session: initial, server, onServerChange, onBack }: {
+  api: Api; session: Session; server: Server; onServerChange: (s: Server) => void; onBack: () => void;
+}) {
   const t = useTheme();
   const [session, setSession] = useState(initial);
   const [events, setEvents] = useState<ChatEvent[]>([]);
@@ -285,13 +288,26 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
   useEffect(() => { loadCaps(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [api, initial.id]);
 
   // Vòng long-poll: nối lại từ con trỏ khi mất mạng hoặc điện thoại ngủ dậy.
+  // Khi app bị đưa xuống nền, vòng lặp huỷ yêu cầu đang treo và tạm nghỉ: máy chủ thấy kết nối đóng nên
+  // biết không còn ai xem session, và sẽ gửi thông báo đẩy khi Claude xong hoặc xin quyền.
   useEffect(() => {
     const ac = new AbortController();
     let after = 0, v = -1, epoch: number | null = null;
+    let request: AbortController | null = null;
+    let wake: (() => void) | null = null;
+    let active = AppState.currentState !== 'background';
+    const sub = AppState.addEventListener('change', (state) => {
+      active = state !== 'background';
+      if (active) { wake?.(); wake = null; } else request?.abort();
+    });
+    ac.signal.addEventListener('abort', () => { request?.abort(); wake?.(); });
+    setOpenSession({ tag: server.id, sessionId: initial.id });
     (async () => {
       while (!ac.signal.aborted) {
+        if (!active) { await new Promise<void>((r) => { wake = r; }); continue; }
         try {
-          const out = await api.poll(initial.id, after, v, epoch, ac.signal);
+          request = new AbortController();
+          const out = await api.poll(initial.id, after, v, epoch, request.signal);
           if (ac.signal.aborted) return;
           const fresh = out.events;
           if (out.reset || epoch === null) setEvents(fresh);
@@ -304,6 +320,7 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
           setOffline(''); setLoaded(true);
         } catch (e: any) {
           if (ac.signal.aborted) return;
+          if (!active) continue; // yêu cầu bị huỷ vì app xuống nền, không phải mất kết nối
           if (e?.status === 404) { setOffline(tr('Session này đã bị xoá trên máy chủ.', 'This session was deleted on the server.')); return; }
           if (e?.status === 401 || e?.status === 429) { setOffline(e.message); return; }
           setOffline(tr('Mất kết nối, đang thử lại…', 'Connection lost, retrying…'));
@@ -311,7 +328,8 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
         }
       }
     })();
-    return () => ac.abort();
+    return () => { ac.abort(); sub.remove(); setOpenSession(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, initial.id]);
 
   const rows = useMemo(() => buildRows(events), [events]);
@@ -345,6 +363,25 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
       setError(e.message);
     } finally {
       setAnswering(false);
+    }
+  }
+
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
+  async function togglePush() {
+    setPushBusy(true); setPushError('');
+    try {
+      if (server.push) {
+        if (server.pushToken) await disablePush(api, server.pushToken);
+        onServerChange({ ...server, push: false, pushToken: undefined });
+      } else {
+        const token = await enablePush(api, server);
+        onServerChange({ ...server, push: true, pushToken: token });
+      }
+    } catch (e: any) {
+      setPushError(e?.message || tr('Không đổi được cài đặt thông báo.', 'Could not change the notification setting.'));
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -557,6 +594,34 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
               {tr('Gói', 'Plan')}: {caps.account.plan}{caps.account.organization ? ` · ${caps.account.organization}` : ''}
             </Text>
           ) : null}
+
+          <SectionTitle text={tr('Thông báo', 'Notifications')} />
+          {pushSupported ? (
+            <Pressable onPress={togglePush} disabled={pushBusy} accessibilityRole="switch"
+              accessibilityState={{ checked: !!server.push, busy: pushBusy }}
+              accessibilityLabel={tr('Thông báo khi Claude xong hoặc cần duyệt', 'Notify when Claude finishes or needs approval')}
+              style={[s.option, { borderColor: server.push ? t.accent : t.border, borderWidth: server.push ? 2 : 1, backgroundColor: t.card, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pushBusy ? 0.6 : 1 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
+                  {tr('Báo khi Claude xong hoặc cần duyệt', 'Notify when Claude finishes or needs approval')}
+                </Text>
+                <Text style={{ color: t.sub, fontSize: 12.5, marginTop: 3 }}>
+                  {tr(`Áp dụng cho mọi session trên ${server.name}. Thông báo chỉ ghi tên thư mục dự án, không kèm nội dung trò chuyện, và đi qua dịch vụ đẩy của Expo và ${Platform.OS === 'ios' ? 'Apple' : 'Google'}.`,
+                    `Applies to every session on ${server.name}. The notification shows only the project folder name, never chat content, and travels through the Expo and ${Platform.OS === 'ios' ? 'Apple' : 'Google'} push services.`)}
+                </Text>
+              </View>
+              {pushBusy ? <ActivityIndicator color={t.accent} /> : (
+                <Text style={{ color: server.push ? t.accent : t.sub, fontSize: 14, fontWeight: '700' }}>
+                  {server.push ? tr('Đang bật', 'On') : tr('Đang tắt', 'Off')}
+                </Text>
+              )}
+            </Pressable>
+          ) : (
+            <Text style={{ color: t.sub, fontSize: 13, marginBottom: 8 }}>
+              {tr('Bản web không nhận được thông báo. Dùng app trên iPhone hoặc Android.', 'The web version cannot receive notifications. Use the iPhone or Android app.')}
+            </Text>
+          )}
+          {pushError ? <Text style={{ color: t.danger, fontSize: 13, marginBottom: 6 }}>{pushError}</Text> : null}
 
           <SectionTitle text="MCP server" />
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 12 }} /> : null}
