@@ -25,7 +25,7 @@
     // App Store Connect → app WujoAgent → TestFlight → nhóm thử nghiệm bên ngoài → Public Link. Khi app đã
     // lên App Store thì đổi thành https://apps.apple.com/app/id6835067140.
     // Để trống: nút tải iPhone báo "chưa mở cho mọi người".
-    "IOS_URL": "",
+    "IOS_URL": "https://testflight.apple.com/join/h1rRPrb7",
     // iOS Universal Link cho mã QR (/.well-known/apple-app-site-association; 404 khi để trống):
     // "<Team ID>.<bundle ID>", Team ID của team Apple ký bản App Store / TestFlight.
     "APPLE_APP_ID": "89UW5X8L7Y.dev.wujo.wujoagent",

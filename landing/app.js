@@ -8,8 +8,8 @@
   var en = document.documentElement.lang === 'en';
   var text = {
     ios: en
-      ? 'The iPhone beta is uploaded to TestFlight but not open to the public yet. Until then, open the web version served by your computer after running "wujoagent serve".'
-      : 'Bản thử nghiệm cho iPhone đã lên TestFlight nhưng chưa mở cho mọi người. Trong lúc đó, bạn dùng được bản web do chính máy tính của bạn phục vụ sau khi chạy "wujoagent serve".',
+      ? 'The iPhone beta is not open yet. Until then, open the web version served by your computer after running "wujoagent serve".'
+      : 'Bản thử nghiệm cho iPhone chưa mở. Trong lúc đó, bạn dùng được bản web do chính máy tính của bạn phục vụ sau khi chạy "wujoagent serve".',
     android: en
       ? 'The Android APK is not published yet. Until then, open the web version served by your computer after running "wujoagent serve".'
       : 'File APK cho Android chưa được phát hành. Trong lúc đó, bạn dùng được bản web do chính máy tính của bạn phục vụ sau khi chạy "wujoagent serve".',
