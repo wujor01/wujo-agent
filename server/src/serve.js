@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, localAddresses } from './config.js';
@@ -11,6 +12,8 @@ import { printQr } from './qr.js';
 import { Push } from './push.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+// Phiên bản báo ở /api/health lấy từ package.json, để không lệch với bản đã cài.
+const { version } = JSON.parse(fs.readFileSync(path.resolve(here, '../package.json'), 'utf8'));
 
 export function startServer({ port, host, qr } = {}) {
   const cfg = loadConfig();
@@ -21,7 +24,7 @@ export function startServer({ port, host, qr } = {}) {
     notify: (kind, info) => push.send(kind, info),
   });
   const webDir = process.env.CS_WEB_DIR || path.resolve(here, '../web');
-  const server = createServer({ manager, token: cfg.token, webDir, capabilities, push });
+  const server = createServer({ manager, token: cfg.token, webDir, capabilities, push, version });
   const listenPort = port || cfg.port;
   const listenHost = host || cfg.host;
 
