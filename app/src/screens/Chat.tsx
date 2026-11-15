@@ -157,7 +157,7 @@ function PermissionCard({ pending, onAnswer, busy }: {
   if (questions.length) {
     const done = questions.every((q) => answers[q.question]);
     return (
-      <View style={[s.perm, { borderColor: t.accent, backgroundColor: t.card }]}>
+      <View>
         {questions.map((q) => (
           <View key={q.question} style={{ marginBottom: 10 }}>
             <Text style={{ color: t.text, fontSize: 15, fontWeight: '600', marginBottom: 6 }}>{q.question}</Text>
@@ -184,21 +184,50 @@ function PermissionCard({ pending, onAnswer, busy }: {
 
   const isPlan = pending.toolName === 'ExitPlanMode';
   return (
-    <View style={[s.perm, { borderColor: t.accent, backgroundColor: t.card }]}>
-      <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
+    <View>
+      <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>
         {isPlan ? tr('Claude đã lập xong kế hoạch. Cho làm theo?', 'Claude has finished the plan. Go ahead with it?')
           : pending.title || tr(`Claude muốn dùng ${pending.toolName}`, `Claude wants to use ${pending.toolName}`)}
       </Text>
       {pending.reason ? <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>{pending.reason}</Text> : null}
-      <View style={[s.code, { backgroundColor: t.code, maxHeight: 220, overflow: 'hidden' }]}>
+      <ScrollView style={[s.code, { backgroundColor: t.code, maxHeight: 260, flexGrow: 0 }]} nestedScrollEnabled>
         <Text selectable style={{ color: t.text, fontFamily: mono, fontSize: 12.5 }}>{permissionDetail(pending)}</Text>
-      </View>
+      </ScrollView>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         <View style={{ flexGrow: 1 }}><Button label={isPlan ? tr('Đồng ý', 'Approve') : tr('Cho phép', 'Allow')} busy={busy} onPress={() => onAnswer('allow')} /></View>
         {pending.canAlways && !isPlan ? <Button kind="plain" label={tr('Luôn cho phép', 'Always allow')} disabled={busy} onPress={() => onAnswer('allow_always')} /> : null}
         <Button kind="danger" label={tr('Từ chối', 'Deny')} disabled={busy} onPress={() => onAnswer('deny')} />
       </View>
     </View>
+  );
+}
+
+/**
+ * Thẻ xin quyền hiện thành popup giữa màn hình, không nằm trong dòng chat (ở đó nó bị trôi khi chat cuộn).
+ * "Xem cuộc trò chuyện" thu popup lại thành một thanh phía trên ô nhập để người dùng đọc lại ngữ cảnh
+ * trước khi quyết định; yêu cầu vẫn đang chờ cho tới khi được trả lời.
+ */
+function PermissionPopup({ pending, onAnswer, busy, onHide }: {
+  pending: Pending; busy: boolean; onHide: () => void;
+  onAnswer: (decision: 'allow' | 'allow_always' | 'deny', answers?: Record<string, string>) => void;
+}) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onHide} statusBarTranslucent>
+      <View style={[s.popupBackdrop, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 16 }]}>
+        <View style={[s.popup, { backgroundColor: t.card, borderColor: t.accent }]} accessibilityViewIsModal
+          accessibilityLabel={tr('Claude đang chờ bạn duyệt', 'Claude is waiting for your approval')}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
+            <PermissionCard pending={pending} onAnswer={onAnswer} busy={busy} />
+          </ScrollView>
+          <Pressable onPress={onHide} disabled={busy} accessibilityRole="button" hitSlop={6}
+            style={[s.popupHide, { borderTopColor: t.border }]}>
+            <Text style={{ color: t.sub, fontSize: 13.5, fontWeight: '600' }}>{tr('Xem cuộc trò chuyện', 'View the conversation')}</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -366,6 +395,11 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
     }
   }
 
+  // Popup xin quyền: mỗi yêu cầu mới lại bật lên, kể cả khi yêu cầu trước đã bị thu lại.
+  const [permHidden, setPermHidden] = useState(false);
+  const pendingId = pending?.requestId;
+  useEffect(() => { setPermHidden(false); if (pendingId) Keyboard.dismiss(); }, [pendingId]);
+
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
   async function togglePush() {
@@ -403,7 +437,6 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
     <View>
       {partial ? <View style={s.row}><RichText text={partial} color={t.text} /></View> : null}
       {busy && !partial && !pending ? <Text style={{ color: t.sub, paddingHorizontal: 16, paddingVertical: 6 }}>{tr('Claude đang làm việc…', 'Claude is working…')}</Text> : null}
-      {pending ? <PermissionCard key={pending.requestId} pending={pending} onAnswer={answer} busy={answering} /> : null}
     </View>
   );
 
@@ -457,6 +490,19 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
           );
         }}
       />
+      {pending && permHidden ? (
+        <Pressable onPress={() => setPermHidden(false)} accessibilityRole="button"
+          style={[s.waitBar, { backgroundColor: t.accent }]}>
+          <Text style={{ color: t.accentText, fontSize: 14.5, fontWeight: '700', flex: 1 }}>
+            {tr('Claude đang chờ bạn duyệt', 'Claude is waiting for your approval')}
+          </Text>
+          <Text style={{ color: t.accentText, fontSize: 14, fontWeight: '700' }}>{tr('Xem', 'Review')}</Text>
+        </Pressable>
+      ) : null}
+      {pending && !permHidden && !sheet && !viewing ? (
+        <PermissionPopup key={pending.requestId} pending={pending} onAnswer={answer} busy={answering}
+          onHide={() => setPermHidden(true)} />
+      ) : null}
       {error ? <Text style={[s.banner, { color: t.danger, borderColor: t.border }]}>{error}</Text> : null}
       {suggestions.length > 0 ? (
         <ScrollView style={[s.suggest, { borderTopColor: t.border, backgroundColor: t.card }]} keyboardShouldPersistTaps="handled">
@@ -660,7 +706,10 @@ const s = StyleSheet.create({
   user: { alignSelf: 'flex-end', maxWidth: '85%', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 16, marginVertical: 6 },
   tool: { marginHorizontal: 16, marginVertical: 3, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
   code: { borderRadius: 8, padding: 10, marginVertical: 8 },
-  perm: { margin: 16, borderWidth: 1.5, borderRadius: 12, padding: 14 },
+  popupBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 },
+  popup: { width: '100%', maxWidth: 520, maxHeight: '100%', borderWidth: 1.5, borderRadius: 16, overflow: 'hidden' },
+  popupHide: { alignItems: 'center', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  waitBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11 },
   option: { borderRadius: 10, padding: 10, marginBottom: 6 },
   banner: { paddingHorizontal: 16, paddingVertical: 6, fontSize: 13, borderBottomWidth: StyleSheet.hairlineWidth },
   composer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10 },
