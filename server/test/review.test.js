@@ -12,6 +12,7 @@ import { createServer } from '../src/http.js';
 import { gitInfo, gitDiff, realPath } from '../src/git.js';
 import { readLimits } from '../src/runner.js';
 import { addLink, reachableAddresses } from '../src/qr.js';
+import { compareVersions, latestVersion } from '../src/update.js';
 
 const TOKEN = 'reviewtoken1';
 let tmp, work, server, port, manager, sdkAbort;
@@ -438,4 +439,44 @@ test('suy nghĩ của Claude: chạy ra dần trong poll, xong thì thành một
   assert.equal(out.thinking, '');
   assert.deepEqual(out.events.map((e) => e.type), ['user', 'thinking', 'assistant', 'result']);
   assert.equal(out.events[1].text, 'Người dùng muốn một câu trả lời ngắn.');
+});
+
+test('kiểm tra bản mới: so phiên bản đúng, nhớ kết quả 6 giờ, mất mạng hay trả lời lạ thì im lặng', async () => {
+  assert.ok(compareVersions('1.0.10', '1.0.9') > 0);
+  assert.ok(compareVersions('1.0.4', '1.1.0') < 0);
+  assert.equal(compareVersions('v1.2.0', '1.2'), 0);
+  assert.ok(compareVersions('2.0.0', '1.99.99') > 0);
+
+  const dir = fs.mkdtempSync(path.join(tmp, 'upd-'));
+  let calls = 0;
+  const ok = async () => { calls++; return { ok: true, json: async () => ({ tag_name: 'v9.8.7' }) }; };
+  assert.equal(await latestVersion(dir, { fetchImpl: ok, now: 1000 }), '9.8.7');
+  assert.equal(await latestVersion(dir, { fetchImpl: ok, now: 1000 + 3600e3 }), '9.8.7');
+  assert.equal(calls, 1, 'trong 6 giờ không hỏi lại GitHub');
+  assert.equal(await latestVersion(dir, { fetchImpl: ok, now: 1000 + 7 * 3600e3 }), '9.8.7');
+  assert.equal(calls, 2);
+  assert.equal(await latestVersion(dir, { fetchImpl: ok, force: true, now: 1000 }), '9.8.7');
+  assert.equal(calls, 3, 'force thì hỏi lại ngay');
+
+  const empty = fs.mkdtempSync(path.join(tmp, 'upd2-'));
+  assert.equal(await latestVersion(empty, { fetchImpl: async () => { throw new Error('mất mạng'); } }), null);
+  assert.equal(await latestVersion(empty, { fetchImpl: async () => ({ ok: false, status: 403, json: async () => ({}) }) }), null);
+  assert.equal(await latestVersion(empty, { fetchImpl: async () => ({ ok: true, json: async () => ({ tag_name: '<script>' }) }) }), null);
+  assert.equal(fs.existsSync(path.join(empty, 'update-check.json')), false);
+});
+
+test('/api/info báo phiên bản server và bản mới nhất cho app', async () => {
+  const srv = createServer({ manager, token: TOKEN, version: '1.2.3', latest: async () => '1.3.0' });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  try {
+    const res = await fetch(`http://127.0.0.1:${srv.address().port}/api/info`, { headers: { Authorization: `Bearer ${TOKEN}` } });
+    const body = await res.json();
+    assert.equal(body.version, '1.2.3');
+    assert.equal(body.latest, '1.3.0');
+  } finally {
+    srv.closeAllConnections();
+    await new Promise((r) => srv.close(r));
+  }
+  // server không được cấu hình nguồn hỏi bản mới vẫn trả info bình thường
+  assert.equal((await call('GET', '/api/info')).body.latest, null);
 });

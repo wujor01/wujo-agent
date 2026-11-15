@@ -16,7 +16,7 @@ const MIME = {
   '.ttf': 'font/ttf', '.woff2': 'font/woff2', '.map': 'application/json',
 };
 
-export function createServer({ manager, token, webDir, capabilities, push, name = os.hostname(), version = '1.0.0' }) {
+export function createServer({ manager, token, webDir, capabilities, push, latest, name = os.hostname(), version = '1.0.0' }) {
   const fails = new Map(); // ip -> { count, resetAt }
 
   function checkAuth(req) {
@@ -92,7 +92,8 @@ export function createServer({ manager, token, webDir, capabilities, push, name 
     }
 
     if (parts[0] === 'info' && method === 'GET') {
-      return send(res, 200, { name, version, home: os.homedir(), platform: process.platform });
+      // `latest`: bản phát hành mới nhất mà server biết (null nếu chưa hỏi được), để app nhắc khi server đã cũ.
+      return send(res, 200, { name, version, latest: latest ? await latest() : null, home: os.homedir(), platform: process.platform });
     }
 
     if (parts[0] === 'dirs' && method === 'GET') {

@@ -3,10 +3,14 @@ import {
   ActivityIndicator, AppState, BackHandler, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
-import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, PollResult, Server, Session, matchCommands, timeUntil } from '../api';
+import {
+  Api, Capabilities, ChatEvent, Limits, Mode, Pending, PollResult, Server, Session, matchCommands, timeUntil, ServerVersion, serverVersion,
+} from '../api';
 import { disablePush, enablePush, pushSupported, setOpenSession } from '../push';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Button, Header, KeyboardShift, mono, useTheme } from '../ui';
+import {
+  Button, Header, KeyboardShift, mono, useTheme, ServerVersionNotice,
+} from '../ui';
 import { DiffSheet, SessionChange, sessionChanges } from '../Diff';
 import { locale, tr } from '../i18n';
 
@@ -390,6 +394,8 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const [sheet, setSheet] = useState<'model' | 'settings' | 'changes' | null>(null);
   const [viewing, setViewing] = useState<SessionChange | null>(null);
   const [limits, setLimits] = useState<Limits>({});
+  const [version, setVersion] = useState<ServerVersion | null>(null);
+  useEffect(() => { api.info().then((i) => setVersion(serverVersion(i))).catch(() => {}); }, [api]);
   const [activity, setActivity] = useState<PollResult['activity']>(null);
   const [started, setStarted] = useState(0); // thời điểm lượt hiện tại bắt đầu, quy về đồng hồ của điện thoại
   const [queued, setQueued] = useState<string[]>([]); // tin đã gửi trong lúc Claude bận, đang chờ lượt kế tiếp
@@ -783,6 +789,14 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
             </Text>
           )}
           {pushError ? <Text style={{ color: t.danger, fontSize: 13, marginBottom: 6 }}>{pushError}</Text> : null}
+
+          <SectionTitle text={tr('Máy chủ', 'Server')} />
+          <ServerVersionNotice v={version} />
+          <Text style={{ color: t.sub, fontSize: 13, marginBottom: 4 }}>
+            {server.name} · {server.host}:{server.port}
+            {version?.version ? ` · ${tr('phiên bản', 'version')} ${version.version}` : ''}
+            {version && !version.tooOld && !version.updatable && version.latest ? ` (${tr('mới nhất', 'latest')})` : ''}
+          </Text>
 
           <SectionTitle text="MCP server" />
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 12 }} /> : null}

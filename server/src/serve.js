@@ -10,6 +10,7 @@ import { claudeHistory } from './history.js';
 import { capabilities } from './models.js';
 import { printQr } from './qr.js';
 import { Push } from './push.js';
+import { checkForUpdate, installKind, latestVersion } from './update.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // Phiên bản báo ở /api/health lấy từ package.json, để không lệch với bản đã cài.
@@ -24,7 +25,10 @@ export function startServer({ port, host, qr } = {}) {
     notify: (kind, info) => push.send(kind, info),
   });
   const webDir = process.env.CS_WEB_DIR || path.resolve(here, '../web');
-  const server = createServer({ manager, token: cfg.token, webDir, capabilities, push, version });
+  const server = createServer({
+    manager, token: cfg.token, webDir, capabilities, push, version,
+    latest: () => latestVersion(cfg.dir),
+  });
   const listenPort = port || cfg.port;
   const listenHost = host || cfg.host;
 
@@ -50,6 +54,11 @@ export function startServer({ port, host, qr } = {}) {
     for (const a of addrs) console.log(`  ${a.kind.padEnd(10)} http://${a.address}:${listenPort}`);
     console.log(`Dữ liệu lưu tại: ${cfg.dir}`);
     if (qr !== false) printQr({ host: listenHost, port: listenPort, token: cfg.token });
+    // Hỏi GitHub xem có bản mới không. Chỉ nhắc, không tự cập nhật: cập nhật là việc của người dùng (wa update).
+    checkForUpdate(cfg.dir).then((u) => {
+      if (!u.newer) return;
+      console.log(`\nCó bản mới ${u.latest} (đang chạy ${u.current}). Cập nhật: ${installKind() === 'source' ? 'git pull' : 'wa update'}, rồi chạy lại "wa serve".`);
+    }).catch(() => {});
   });
   return server;
 }

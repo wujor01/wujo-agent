@@ -115,6 +115,8 @@ ssh may-chu wa list
 | Lệnh | Việc |
 |---|---|
 | `wa serve [--port N] [--host IP]` | chạy server |
+| `wa version` | in phiên bản đang cài và bản mới nhất |
+| `wa update` | cài bản mới nhất; sau đó chạy lại `wa serve` |
 | `wa token` | in token |
 | `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
 | `wa list` | liệt kê session đã mở qua hệ thống |
@@ -140,6 +142,7 @@ Dữ liệu nằm ở `~/.claude-sessions` (`config.json`, `sessions.json`, `eve
 | `CS_HOST` | địa chỉ lắng nghe | 0.0.0.0 |
 | `CS_TOKEN` | token | sinh ngẫu nhiên lần chạy đầu |
 | `CS_DATA_DIR` | thư mục dữ liệu | `~/.claude-sessions` |
+| `WA_NO_UPDATE_CHECK` | đặt `1` để server không hỏi GitHub về bản mới | (có hỏi, 6 giờ một lần) |
 | `CS_CLAUDE_PATH` | đường dẫn `claude` nếu SDK không tự tìm thấy | (tự tìm) |
 
 ## Bảo mật

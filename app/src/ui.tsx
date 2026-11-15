@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Server } from './api';
+import type { Server, ServerVersion } from './api';
 import { tr } from './i18n';
 
 export type Theme = {
@@ -198,6 +198,26 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
           </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+/** Nhắc khi server trên máy tính đã cũ: quá cũ so với app thì cảnh báo, chỉ là có bản mới thì nhắc nhẹ. */
+export function ServerVersionNotice({ v }: { v: ServerVersion | null }) {
+  const t = useTheme();
+  if (!v || (!v.tooOld && !v.updatable)) return null;
+  return (
+    <View style={[s.notice, { borderColor: v.tooOld ? t.warn : t.border }]} accessibilityRole="alert">
+      <Text style={{ color: v.tooOld ? t.warn : t.sub, fontSize: 14, fontWeight: '600' }}>
+        {v.tooOld
+          ? tr(`Server trên máy tính đã cũ (${v.version || 'không rõ phiên bản'}). Một số tính năng của app sẽ không chạy.`,
+            `The server on your computer is out of date (${v.version || 'unknown version'}). Some app features will not work.`)
+          : tr(`Server có bản mới ${v.latest} (đang chạy ${v.version}).`, `Server update ${v.latest} is available (running ${v.version}).`)}
+      </Text>
+      <Text style={{ color: t.sub, fontSize: 13, marginTop: 4 }}>
+        {tr('Trên máy tính chạy "wa update", rồi dừng server và chạy lại "wa serve".',
+          'On the computer run "wa update", then stop the server and run "wa serve" again.')}
+      </Text>
     </View>
   );
 }

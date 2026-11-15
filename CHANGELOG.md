@@ -2,6 +2,15 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.5] - 2026-11-15
+
+### Thêm
+
+- Server báo khi có bản mới: `wa serve` in một dòng nhắc, `wa version` cho biết bản đang cài và bản mới nhất.
+- Lệnh `wa update` cài bản mới nhất. Server không tự cập nhật và không tự khởi động lại; cập nhật xong bạn chạy lại `wa serve`.
+- App hiện phiên bản server trong ⚙ và cảnh báo khi server trên máy tính cũ hơn mức app cần.
+- Tắt việc hỏi bản mới bằng biến môi trường `WA_NO_UPDATE_CHECK=1`.
+
 ## [1.0.4] - 2026-11-15
 
 ### Thêm

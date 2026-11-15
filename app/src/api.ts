@@ -93,6 +93,36 @@ export function parseAddress(input: string, fallbackPort = 7433): { host: string
   return { host: s, port };
 }
 
+/**
+ * Phiên bản server thấp nhất mà bản app này cần để mọi tính năng chạy đúng (hàng chờ tin nhắn, dòng trạng thái,
+ * xem suy nghĩ). Tăng số này mỗi khi app bắt đầu dựa vào một thay đổi mới ở server.
+ */
+export const MIN_SERVER = '1.0.4';
+
+/** So hai số phiên bản dạng "1.2.3": âm nếu a cũ hơn b. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = b.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
+export type ServerVersion = { version: string | null; latest: string | null; tooOld: boolean; updatable: boolean };
+
+/** Đọc phiên bản server từ /api/info. Server rất cũ không báo phiên bản: coi như quá cũ. */
+export function serverVersion(info: { version?: string; latest?: string | null }): ServerVersion {
+  const version = info.version || null;
+  const latest = info.latest || null;
+  return {
+    version, latest,
+    tooOld: !version || compareVersions(version, MIN_SERVER) < 0,
+    updatable: !!version && !!latest && compareVersions(latest, version) > 0,
+  };
+}
+
 export type ServerLink = { hosts: string[]; port: number; token: string };
 
 /** Tên miền của mã QR (Universal Link / App Link của app). */
@@ -186,7 +216,7 @@ export class Api {
   }
 
   health() { return this.req<{ ok: boolean; app: string }>('GET', '/health', undefined, 6000); }
-  info() { return this.req<{ name: string; home: string; platform: string }>('GET', '/info', undefined, 6000); }
+  info() { return this.req<{ name: string; home: string; platform: string; version?: string; latest?: string | null }>('GET', '/info', undefined, 6000); }
   dirs(path: string) { return this.req<DirList>('GET', `/dirs?path=${encodeURIComponent(path)}`); }
   workspaces(root: string) {
     return this.req<{ root: string; parent?: string | null; workspaces: Workspace[] }>('GET', `/workspaces?root=${encodeURIComponent(root)}`, undefined, 30000);

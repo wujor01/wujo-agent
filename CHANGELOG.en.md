@@ -2,6 +2,15 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.5] - 2026-11-15
+
+### Added
+
+- The server tells you when an update is out: `wa serve` prints a one-line reminder, and `wa version` shows the installed and latest versions.
+- `wa update` installs the latest version. The server never updates or restarts itself; after updating, run `wa serve` again.
+- The app shows the server version under ⚙ and warns when the server on your computer is older than the app needs.
+- Turn the update check off with the environment variable `WA_NO_UPDATE_CHECK=1`.
+
 ## [1.0.4] - 2026-11-15
 
 ### Added

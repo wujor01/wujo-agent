@@ -8,6 +8,8 @@ const [cmd, ...args] = process.argv.slice(2);
 const HELP = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ điện thoại
 
   wa serve [--port N] [--host IP] [--no-qr]   chạy server (mặc định 0.0.0.0:7433)
+  wa version                        in phiên bản đang cài và bản mới nhất
+  wa update                         cài bản mới nhất (sau đó chạy lại "wa serve")
   wa token                          in token để nhập vào app
   wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
   wa list                           liệt kê session
@@ -84,6 +86,31 @@ async function main() {
     case 'serve': {
       const { startServer } = await import('../src/serve.js');
       startServer({ port: flag('port') ? Number(flag('port')) : undefined, host: flag('host'), qr: !args.includes('--no-qr') });
+      return;
+    }
+    case 'version': {
+      const { checkForUpdate } = await import('../src/update.js');
+      const u = await checkForUpdate(loadConfig().dir, { force: true });
+      console.log(`WujoAgent ${u.current}`);
+      if (!u.latest) console.log('Không hỏi được bản mới nhất (mất mạng hoặc GitHub giới hạn lượt hỏi).');
+      else if (u.newer) console.log(`Có bản mới ${u.latest}. Cập nhật: wa update`);
+      else console.log('Đang là bản mới nhất.');
+      return;
+    }
+    case 'update': {
+      const { checkForUpdate, installKind, installLatest } = await import('../src/update.js');
+      const u = await checkForUpdate(loadConfig().dir, { force: true });
+      if (installKind() === 'source') {
+        console.log(`Bản này chạy từ mã nguồn (${u.current}${u.latest ? `, mới nhất ${u.latest}` : ''}).`);
+        console.log('Cập nhật bằng git trong thư mục mã nguồn:  git pull');
+        console.log('Rồi chạy lại "wa serve".');
+        return;
+      }
+      if (u.latest && !u.newer) return console.log(`Đang là bản mới nhất (${u.current}).`);
+      console.log(u.latest ? `Đang cài ${u.latest} (hiện tại ${u.current})…` : 'Không hỏi được số phiên bản; vẫn cài lại bản mới nhất…');
+      const code = await installLatest();
+      if (code !== 0) throw new Error('Cài đặt thất bại. Thử chạy tay:  npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz');
+      console.log('\nĐã cài xong. Server đang chạy vẫn là bản cũ cho tới khi bạn dừng nó và chạy lại "wa serve".');
       return;
     }
     case 'token':

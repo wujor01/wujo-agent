@@ -2,8 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, FlatList, Keyboard, Pressable, RefreshControl, ScrollView, Text, View,
 } from 'react-native';
-import { Api, DirList, Server, SortKey, Workspace, sortDirs, sortWorkspaces, timeAgo } from '../api';
-import { Badge, Button, Card, Empty, Field, Header, KeyboardShift, Notice, Segmented, mono, useTheme } from '../ui';
+import {
+  Api, DirList, Server, SortKey, Workspace, sortDirs, sortWorkspaces, timeAgo, ServerVersion, serverVersion,
+} from '../api';
+import {
+  Badge, Button, Card, Empty, Field, Header, KeyboardShift, Notice, Segmented, mono, useTheme, ServerVersionNotice,
+} from '../ui';
 import { tr } from '../i18n';
 
 /** Chọn thư mục gốc trên máy chủ bằng cách đi từng cấp. */
@@ -123,7 +127,8 @@ export function Workspaces({ server, api, onBack, onOpen, onSetRoot, onSetSort }
   }, [api, server.root]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { api.info().then((i) => setHome(i.home)).catch(() => {}); }, [api]);
+  const [version, setVersion] = useState<ServerVersion | null>(null);
+  useEffect(() => { api.info().then((i) => { setHome(i.home); setVersion(serverVersion(i)); }).catch(() => {}); }, [api]);
 
   const sorted = sortWorkspaces(items || [], sort);
   // Vị trí thư mục đầu tiên chưa có session: kẻ một dòng phân cách phía trên nó (nếu phía trên có thư mục đã có session).
@@ -150,6 +155,7 @@ export function Workspaces({ server, api, onBack, onOpen, onSetRoot, onSetSort }
         ListHeaderComponent={(
           <View style={{ marginBottom: 12 }}>
             <Notice text={error} />
+            <ServerVersionNotice v={version} />
             <Segmented label={tr('Sắp xếp', 'Sort')} value={sort} onChange={onSetSort}
               options={[{ value: 'activity', label: tr('Hoạt động', 'Activity') }, { value: 'modified', label: tr('Ngày sửa', 'Modified') }, { value: 'name', label: tr('Tên', 'Name') }]} />
             {parent ? (
