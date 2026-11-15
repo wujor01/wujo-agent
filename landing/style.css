@@ -107,3 +107,5 @@ header.top nav a { white-space: nowrap; }
 .changelog ul { padding-left: 20px; margin: 0; }
 .changelog li { margin-bottom: 7px; }
 .changelog .source { margin-top: 40px; font-size: 14px; }
+
+.hint { margin: 14px 0 0; color: var(--sub); font-size: 14.5px; max-width: 640px; }

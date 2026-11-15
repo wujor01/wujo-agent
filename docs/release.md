@@ -13,7 +13,9 @@ EAS dưới tài khoản Expo `wujor01`, mã định danh `dev.wujo.wujoagent`, 
 | CI/CD trên GitHub Actions | Xong (`.github/workflows/`); cần thêm secret, xem mục 4b |
 | Dự án EAS `@wujor01/wujoagent` | Xong (`extra.eas.projectId` trong `app/app.json`) |
 | Build APK | Xong bản 1.0.0 (versionCode 1), đã chép sang R2 |
-| Build iOS, gửi App Store | **Chưa làm**: có bước đăng nhập Apple |
+| Build iOS | Xong bản 1.0.0, đã lên App Store Connect (app ID `6835067140`) |
+| Link TestFlight công khai | **Chưa có**: cần tạo nhóm thử nghiệm bên ngoài và qua Beta App Review |
+| Gửi duyệt App Store | **Chưa làm**: thiếu ảnh chụp màn hình và thông tin cho người duyệt |
 | Deploy landing lên `agent.wujo.dev` | Xong; nút tải Android đã có APK, nút iPhone còn báo chưa phát hành |
 | Ảnh chụp màn hình cho store | **Chưa có** |
 
@@ -49,13 +51,16 @@ npx eas-cli build -p ios --profile production
 npx eas-cli submit -p ios --profile production --latest
 ```
 
-Sau khi có `ascAppId`, thêm vào `app/eas.json` để các lần sau không phải nhập:
+`ascAppId` của app (`6835067140`) đã nằm trong `app/eas.json`, nên các lần sau gửi được không cần nhập lại.
 
-```json
-"submit": { "production": { "ios": { "ascAppId": "<Apple ID của app>" } } }
-```
+Bản build lên TestFlight trước. Để mọi người cài được qua nút "Tải cho iPhone" trên trang chủ:
 
-Bản build lên TestFlight trước. Muốn có link TestFlight công khai thì tạo nhóm thử nghiệm bên ngoài và chờ Beta App Review. Có link TestFlight hoặc link App Store rồi thì dán vào `IOS_URL` trong `wrangler.landing.jsonc` và deploy lại.
+1. App Store Connect → WujoAgent → TestFlight → điền Test Information (mô tả bản thử, email liên hệ, và cách người duyệt thử app).
+2. Tạo nhóm **External Testing**, thêm bản build vào nhóm. Apple duyệt bản thử nghiệm (Beta App Review), thường mất khoảng một ngày.
+3. Trong nhóm đó bật **Public Link** và chép link `https://testflight.apple.com/join/...`.
+4. Dán link vào `IOS_URL` trong `deploy/cloudflare/wrangler.landing.jsonc` rồi đẩy lên `main`.
+
+Khi app đã lên App Store thì đổi `IOS_URL` thành `https://apps.apple.com/app/id6835067140`.
 
 ### Điều cần chuẩn bị cho khâu duyệt của Apple
 
