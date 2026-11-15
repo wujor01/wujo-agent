@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WujoAgent — Run Claude Code from your phone</title>
+  <meta name="description" content="Chat with Claude Code running on your own computer, approve each action and review git changes from your phone. Connects directly over your local network or Tailscale.">
+  <link rel="canonical" href="https://agent.wujo.dev/en/">
+  <link rel="alternate" hreflang="vi" href="https://agent.wujo.dev/">
+  <link rel="alternate" hreflang="en" href="https://agent.wujo.dev/en/">
+  <link rel="alternate" hreflang="x-default" href="https://agent.wujo.dev/en/">
+  <meta property="og:title" content="WujoAgent — Run Claude Code from your phone">
+  <meta property="og:description" content="Chat, approve actions and review git changes for Claude Code on your computer, from your phone.">
+  <meta property="og:image" content="https://agent.wujo.dev/icon.png">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#1b1a18">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/en/"><img src="/icon.png" alt="" width="32" height="32">WujoAgent</a>
+    <nav aria-label="Navigation">
+      <a href="#how">How it works</a>
+      <a href="#security">Security</a>
+      <a href="/?lang=vi" lang="vi">Tiếng Việt</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Run Claude Code on your computer, from your phone</h1>
+      <p class="lead">Reopen sessions you left unfinished, send new work, approve each action and review git changes. Your phone connects straight to your computer over your local network or Tailscale.</p>
+      <div class="stores" id="download">
+        <a class="store" href="/download/ios">Get it for iPhone<small>App Store</small></a>
+        <a class="store alt" href="/download/android">Get it for Android<small>APK file, direct install</small></a>
+      </div>
+      <p class="notice" id="soon" role="status"></p>
+    </div>
+
+    <section id="how">
+      <h2>How it works</h2>
+      <p class="intro">You need a computer with Claude Code installed and Node.js 20 or later. It takes about two minutes.</p>
+      <ol class="steps">
+        <li>
+          <h3>Install WujoAgent on your computer</h3>
+          <p>Run this in a terminal on the machine where you use Claude Code.</p>
+          <pre><code>npm install -g https://agent.wujo.dev/download/wujoagent.tgz</code></pre>
+        </li>
+        <li>
+          <h3>Start it and scan the QR code</h3>
+          <p>The terminal shows a QR code. Open the app and tap Scan QR, or use your phone's camera.</p>
+          <pre><code>wujoagent serve</code></pre>
+        </li>
+        <li>
+          <h3>Pick a project folder and start</h3>
+          <p>The app lists the projects and Claude Code sessions already on your computer, including ones you started in VS Code or a terminal.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>What you can do</h2>
+      <div class="grid">
+        <div class="card"><h3>Continue existing sessions</h3><p>History is read from your computer, so you pick up exactly where you stopped.</p></div>
+        <div class="card"><h3>Approve each action</h3><p>Claude asks before it edits a file or runs a command. Allow once, always allow, or deny.</p></div>
+        <div class="card"><h3>Review changes by file</h3><p>Branch, recent commits, every added and removed line. Fetch, pull and push from the app.</p></div>
+        <div class="card"><h3>Choose model and mode</h3><p>Switch model per session, and move between ask before edits, auto-accept edits and plan mode.</p></div>
+        <div class="card"><h3>Track usage</h3><p>Context percentage, your account's 5-hour and 7-day limits, and when they reset.</p></div>
+        <div class="card"><h3>Slash commands</h3><p>Type / to see your project's commands and skills, as on your computer.</p></div>
+      </div>
+    </section>
+
+    <section id="security">
+      <h2>Security</h2>
+      <p class="intro">WujoAgent has no relay server. Your source code and chat content never pass through us.</p>
+      <ul class="plain">
+        <li><strong>Direct connection.</strong> Your phone talks to your own computer, not to any WujoAgent service.</li>
+        <li><strong>Token required.</strong> Each computer has its own token. More than ten wrong attempts in a minute blocks that address for a while.</li>
+        <li><strong>Tailscale recommended.</strong> Over Tailscale the connection is end-to-end encrypted. On local Wi-Fi the data travels as plain HTTP, so use it only on networks you trust.</li>
+        <li><strong>Keep it off the internet.</strong> Anyone with the token can drive Claude Code on your machine. Do not share the QR code or forward the port.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="links">
+      <a href="/en/privacy">Privacy policy</a>
+      <a href="mailto:contact@wujo.dev">contact@wujo.dev</a>
+      <a href="/?lang=vi" lang="vi">Tiếng Việt</a>
+    </div>
+    <p>WujoAgent is an independent product. It is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.</p>
+  </footer>
+</div>
+<script src="/app.js" defer></script>
+</body>
+</html>

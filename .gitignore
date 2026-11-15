@@ -1,0 +1,12 @@
+node_modules/
+server/web/
+app/dist/
+app/.expo/
+.env
+
+landing/download/
+server/*.tgz
+.wrangler/
+
+# Sổ ghi nội bộ của quá trình phát triển
+.autopilot/

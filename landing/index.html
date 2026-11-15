@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WujoAgent — Điều khiển Claude Code từ điện thoại</title>
+  <meta name="description" content="Chat với Claude Code đang chạy trên máy tính của bạn, duyệt từng thao tác và xem thay đổi git ngay trên điện thoại. Kết nối thẳng qua mạng nội bộ hoặc Tailscale.">
+  <link rel="canonical" href="https://agent.wujo.dev/">
+  <link rel="alternate" hreflang="vi" href="https://agent.wujo.dev/">
+  <link rel="alternate" hreflang="en" href="https://agent.wujo.dev/en/">
+  <link rel="alternate" hreflang="x-default" href="https://agent.wujo.dev/en/">
+  <meta property="og:title" content="WujoAgent — Điều khiển Claude Code từ điện thoại">
+  <meta property="og:description" content="Chat, duyệt quyền và xem thay đổi git của Claude Code trên máy tính, ngay từ điện thoại.">
+  <meta property="og:image" content="https://agent.wujo.dev/icon.png">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#1b1a18">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/"><img src="/icon.png" alt="" width="32" height="32">WujoAgent</a>
+    <nav aria-label="Điều hướng">
+      <a href="#cach-dung">Cách dùng</a>
+      <a href="#bao-mat">Bảo mật</a>
+      <a href="/en/?lang=en" lang="en">English</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <h1>Điều khiển Claude Code trên máy tính, từ điện thoại</h1>
+      <p class="lead">Mở lại các session đang làm dở, nhắn việc mới, duyệt từng thao tác và xem thay đổi git. Điện thoại nối thẳng tới máy tính của bạn qua mạng nội bộ hoặc Tailscale.</p>
+      <div class="stores" id="tai-ve">
+        <a class="store" href="/download/ios">Tải cho iPhone<small>App Store</small></a>
+        <a class="store alt" href="/download/android">Tải cho Android<small>File APK cài trực tiếp</small></a>
+      </div>
+      <p class="notice" id="soon" role="status"></p>
+    </div>
+
+    <section id="cach-dung">
+      <h2>Cách dùng</h2>
+      <p class="intro">Cần một máy tính đã cài Claude Code và Node.js 20 trở lên. Mất khoảng hai phút.</p>
+      <ol class="steps">
+        <li>
+          <h3>Cài WujoAgent trên máy tính</h3>
+          <p>Chạy lệnh sau trong terminal của máy đang dùng Claude Code.</p>
+          <pre><code>npm install -g https://agent.wujo.dev/download/wujoagent.tgz</code></pre>
+        </li>
+        <li>
+          <h3>Chạy và quét mã QR</h3>
+          <p>Terminal hiện mã QR. Mở app, bấm Quét QR, hoặc dùng camera của điện thoại.</p>
+          <pre><code>wujoagent serve</code></pre>
+        </li>
+        <li>
+          <h3>Chọn thư mục dự án và bắt đầu</h3>
+          <p>App liệt kê các dự án và session Claude Code đã có trên máy tính, kể cả session bạn mở từ VS Code hay terminal.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Làm được gì</h2>
+      <div class="grid">
+        <div class="card"><h3>Chat tiếp session cũ</h3><p>Lịch sử được đọc từ chính máy tính, nên bạn tiếp tục đúng chỗ đang dở.</p></div>
+        <div class="card"><h3>Duyệt từng thao tác</h3><p>Claude hỏi trước khi sửa file hay chạy lệnh. Bạn cho phép, luôn cho phép, hoặc từ chối.</p></div>
+        <div class="card"><h3>Xem thay đổi theo file</h3><p>Nhánh, commit gần đây, từng dòng thêm và bớt. Fetch, pull, push ngay trong app.</p></div>
+        <div class="card"><h3>Chọn model và chế độ</h3><p>Đổi model cho từng session, chuyển giữa hỏi trước khi sửa, tự sửa file và lập kế hoạch.</p></div>
+        <div class="card"><h3>Theo dõi mức sử dụng</h3><p>Phần trăm ngữ cảnh, giới hạn 5 giờ và 7 ngày của tài khoản, kèm thời điểm đặt lại.</p></div>
+        <div class="card"><h3>Lệnh gạch chéo</h3><p>Gõ / để xem các lệnh và skill của dự án, giống như trên máy tính.</p></div>
+      </div>
+    </section>
+
+    <section id="bao-mat">
+      <h2>Bảo mật</h2>
+      <p class="intro">WujoAgent không có máy chủ trung gian. Mã nguồn và nội dung chat của bạn không đi qua chúng tôi.</p>
+      <ul class="plain">
+        <li><strong>Kết nối trực tiếp.</strong> Điện thoại nói chuyện với máy tính của bạn, không qua dịch vụ nào của WujoAgent.</li>
+        <li><strong>Cần token.</strong> Mỗi máy tính có một token riêng. Sai quá mười lần trong một phút thì địa chỉ đó bị chặn tạm.</li>
+        <li><strong>Nên dùng Tailscale.</strong> Qua Tailscale, kết nối được mã hoá đầu cuối. Trong mạng Wi-Fi nội bộ, dữ liệu đi dạng HTTP thường, chỉ nên dùng ở mạng bạn tin.</li>
+        <li><strong>Không mở ra internet.</strong> Ai có token thì điều khiển được Claude Code trên máy bạn. Đừng chia sẻ mã QR hay chuyển tiếp cổng ra ngoài.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="links">
+      <a href="/privacy">Chính sách quyền riêng tư</a>
+      <a href="mailto:contact@wujo.dev">contact@wujo.dev</a>
+      <a href="/en/?lang=en" lang="en">English</a>
+    </div>
+    <p>WujoAgent là sản phẩm độc lập, không liên kết với Anthropic và không được Anthropic bảo trợ. Claude và Claude Code là nhãn hiệu của Anthropic, PBC.</p>
+  </footer>
+</div>
+<script src="/app.js" defer></script>
+</body>
+</html>

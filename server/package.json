@@ -1,0 +1,36 @@
+{
+  "name": "wujoagent",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node bin/cs.js serve",
+    "test": "node --test --test-timeout=60000"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "description": "Server của WujoAgent: điều khiển Claude Code trên máy tính từ điện thoại qua mạng nội bộ hoặc Tailscale.",
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.325",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "type": "module",
+  "bin": {
+    "wujoagent": "bin/cs.js",
+    "cs": "bin/cs.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "src",
+    "web",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wujor01/wujo-agent.git",
+    "directory": "server"
+  },
+  "homepage": "https://agent.wujo.dev"
+}
