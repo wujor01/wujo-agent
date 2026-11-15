@@ -3,6 +3,7 @@ import { Linking, Platform, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ServerLink, parseServerLink } from './api';
 import { Button, FullModal, useTheme } from './ui';
+import { tr } from './i18n';
 
 /** Toàn màn hình: quét mã QR mà `wujoagent serve` hoặc `wujoagent qr` in ra để thêm máy chủ. */
 export function Scanner({ onScan, onClose }: { onScan: (link: ServerLink) => void; onClose: () => void }) {
@@ -17,7 +18,7 @@ export function Scanner({ onScan, onClose }: { onScan: (link: ServerLink) => voi
     const link = parseServerLink(data);
     if (!link) {
       // Camera báo liên tục cùng một mã: chỉ nhắc một lần cho mỗi mã lạ.
-      if (lastBad.current !== data) { lastBad.current = data; setHint('Mã này không phải mã của WujoAgent. Chạy "wujoagent qr" trên máy tính để lấy mã.'); }
+      if (lastBad.current !== data) { lastBad.current = data; setHint(tr('Mã này không phải mã của WujoAgent. Chạy "wujoagent qr" trên máy tính để lấy mã.', 'This is not a WujoAgent code. Run "wujoagent qr" on the computer to get one.')); }
       return;
     }
     done.current = true;
@@ -26,21 +27,23 @@ export function Scanner({ onScan, onClose }: { onScan: (link: ServerLink) => voi
 
   let body: React.ReactNode;
   if (!permission) {
-    body = <Text style={{ color: t.sub, padding: 24, textAlign: 'center' }}>Đang kiểm tra quyền dùng camera…</Text>;
+    body = <Text style={{ color: t.sub, padding: 24, textAlign: 'center' }}>{tr('Đang kiểm tra quyền dùng camera…', 'Checking camera permission…')}</Text>;
   } else if (!permission.granted) {
     body = (
       <View style={{ padding: 24, gap: 14 }}>
         <Text style={{ color: t.text, fontSize: 16, textAlign: 'center' }}>
-          App cần dùng camera để quét mã QR của máy chủ.
+          {tr('App cần dùng camera để quét mã QR của máy chủ.', "The app needs the camera to scan the server's QR code.")}
         </Text>
         {permission.canAskAgain ? (
-          <Button label="Cho phép dùng camera" onPress={() => { requestPermission(); }} />
+          <Button label={tr('Cho phép dùng camera', 'Allow camera access')} onPress={() => { requestPermission(); }} />
         ) : (
           <View style={{ gap: 10 }}>
             <Text style={{ color: t.sub, textAlign: 'center' }}>
-              Quyền camera đang bị tắt. Bật lại trong phần cài đặt của {Platform.OS === 'web' ? 'trình duyệt' : 'điện thoại'}.
+              {Platform.OS === 'web'
+                ? tr('Quyền camera đang bị tắt. Bật lại trong phần cài đặt của trình duyệt.', 'Camera access is off. Turn it on in the browser settings.')
+                : tr('Quyền camera đang bị tắt. Bật lại trong phần cài đặt của điện thoại.', 'Camera access is off. Turn it on in the phone settings.')}
             </Text>
-            {Platform.OS !== 'web' ? <Button label="Mở Cài đặt" onPress={() => { Linking.openSettings(); }} /> : null}
+            {Platform.OS !== 'web' ? <Button label={tr('Mở Cài đặt', 'Open Settings')} onPress={() => { Linking.openSettings(); }} /> : null}
           </View>
         )}
       </View>
@@ -56,7 +59,7 @@ export function Scanner({ onScan, onClose }: { onScan: (link: ServerLink) => voi
         />
         <View style={{ padding: 16 }}>
           <Text style={{ color: hint ? t.warn : t.sub, textAlign: 'center', fontSize: 14 }}>
-            {hint || 'Đưa camera vào mã QR hiện trong terminal của máy chủ.'}
+            {hint || tr('Đưa camera vào mã QR hiện trong terminal của máy chủ.', "Point the camera at the QR code shown in the server's terminal.")}
           </Text>
         </View>
       </View>
@@ -66,8 +69,8 @@ export function Scanner({ onScan, onClose }: { onScan: (link: ServerLink) => voi
   return (
     <FullModal onClose={onClose}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: t.border }}>
-          <Text style={{ color: t.text, fontSize: 18, fontWeight: '600', flex: 1 }}>Quét mã QR</Text>
-          <Button small kind="plain" label="Đóng" onPress={onClose} />
+          <Text style={{ color: t.text, fontSize: 18, fontWeight: '600', flex: 1 }}>{tr('Quét mã QR', 'Scan QR code')}</Text>
+          <Button small kind="plain" label={tr('Đóng', 'Close')} onPress={onClose} />
         </View>
         {body}
     </FullModal>

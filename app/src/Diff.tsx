@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { Api, ChatEvent, DiffResult } from './api';
 import { Button, FullModal, mono, useTheme } from './ui';
+import { tr } from './i18n';
 
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 
@@ -49,13 +50,13 @@ export function sessionChanges(events: ChatEvent[], cwd: string): SessionChange[
     const plus = (t: unknown) => String(t ?? '').split('\n').map((l) => '+' + l).join('\n');
     if (e.name === 'Write') {
       item.created = true;
-      parts.push(`@@ ghi toàn bộ file @@\n${plus(input.content)}`);
+      parts.push(`@@ ${tr('ghi toàn bộ file', 'whole file written')} @@\n${plus(input.content)}`);
     } else if (Array.isArray(input.edits)) {
-      for (const ed of input.edits) parts.push(`@@ sửa @@\n${minus(ed.old_string)}\n${plus(ed.new_string)}`);
+      for (const ed of input.edits) parts.push(`@@ ${tr('sửa', 'edit')} @@\n${minus(ed.old_string)}\n${plus(ed.new_string)}`);
     } else if (typeof input.new_string === 'string' || typeof input.old_string === 'string') {
-      parts.push(`@@ sửa @@\n${minus(input.old_string)}\n${plus(input.new_string)}`);
+      parts.push(`@@ ${tr('sửa', 'edit')} @@\n${minus(input.old_string)}\n${plus(input.new_string)}`);
     } else if (typeof input.new_source === 'string') {
-      parts.push(`@@ sửa ô notebook @@\n${plus(input.new_source)}`);
+      parts.push(`@@ ${tr('sửa ô notebook', 'notebook cell edit')} @@\n${plus(input.new_source)}`);
     }
     item.fallback += (item.fallback && parts.length ? '\n' : '') + parts.join('\n');
   }
@@ -93,7 +94,7 @@ export function DiffView({ diff }: { diff: string }) {
           );
         })}
         {lines.length > MAX ? (
-          <Text style={{ color: t.sub, fontSize: 12, padding: 10 }}>… còn {lines.length - MAX} dòng nữa không hiển thị.</Text>
+          <Text style={{ color: t.sub, fontSize: 12, padding: 10 }}>{tr(`… còn ${lines.length - MAX} dòng nữa không hiển thị.`, `… ${lines.length - MAX} more lines not shown.`)}</Text>
         ) : null}
       </View>
     </ScrollView>
@@ -137,23 +138,23 @@ export function DiffSheet({ api, dir, file, title, fallback, onClose }: {
               <Text style={{ fontSize: 12, marginTop: 2, color: t.sub }}>
                 <Text style={{ color: t.ok, fontWeight: '700' }}>+{stats!.added}</Text>{'  '}
                 <Text style={{ color: t.danger, fontWeight: '700' }}>−{stats!.removed}</Text>
-                {result.untracked ? '  ·  file mới' : ''}{result.deleted ? '  ·  đã xoá' : ''}
-                {fromSession ? '  ·  các lần sửa của session' : '  ·  so với commit gần nhất'}
+                {result.untracked ? tr('  ·  file mới', '  ·  new file') : ''}{result.deleted ? tr('  ·  đã xoá', '  ·  deleted') : ''}
+                {fromSession ? tr('  ·  các lần sửa của session', '  ·  edits from this session') : tr('  ·  so với commit gần nhất', '  ·  vs. last commit')}
               </Text>
             ) : null}
           </View>
-          <Button small kind="plain" label="Đóng" onPress={onClose} />
+          <Button small kind="plain" label={tr('Đóng', 'Close')} onPress={onClose} />
         </View>
         {!result && !error ? <ActivityIndicator color={t.accent} style={{ marginTop: 40 }} /> : null}
         {error ? <Text style={{ color: t.danger, padding: 16 }}>{error}</Text> : null}
-        {result?.binary ? <Text style={{ color: t.sub, padding: 16 }}>File nhị phân, không hiển thị được nội dung.</Text> : null}
+        {result?.binary ? <Text style={{ color: t.sub, padding: 16 }}>{tr('File nhị phân, không hiển thị được nội dung.', 'Binary file, contents cannot be shown.')}</Text> : null}
         {result && !result.binary && !result.diff ? (
-          <Text style={{ color: t.sub, padding: 16 }}>File này không khác gì so với commit gần nhất.</Text>
+          <Text style={{ color: t.sub, padding: 16 }}>{tr('File này không khác gì so với commit gần nhất.', 'This file has no changes since the last commit.')}</Text>
         ) : null}
         {result && result.diff ? (
           <ScrollView contentContainerStyle={{ paddingVertical: 8 }}>
             <DiffView diff={result.diff} />
-            {result.truncated ? <Text style={{ color: t.warn, fontSize: 12, padding: 10 }}>File quá lớn, chỉ hiện phần đầu.</Text> : null}
+            {result.truncated ? <Text style={{ color: t.warn, fontSize: 12, padding: 10 }}>{tr('File quá lớn, chỉ hiện phần đầu.', 'File too large, showing only the beginning.')}</Text> : null}
           </ScrollView>
         ) : null}
     </FullModal>

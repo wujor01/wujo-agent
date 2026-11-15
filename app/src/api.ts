@@ -1,7 +1,9 @@
+import { lang, locale, tr } from './i18n';
+
 export type SortKey = 'activity' | 'modified' | 'name';
 export type Server = { id: string; name: string; host: string; port: number; token: string; root?: string; sort?: SortKey };
 
-export type Mode = 'default' | 'acceptEdits' | 'plan';
+export type Mode = 'default' | 'acceptEdits' | 'plan' | 'auto';
 export type Status = 'idle' | 'running' | 'waiting';
 
 export type Session = {
@@ -133,7 +135,7 @@ export async function connectLink(link: ServerLink): Promise<Server> {
     try {
       const api = new Api({ host, port: link.port, token: link.token });
       const health = await api.health();
-      if (health.app !== 'claude-sessions') throw new ApiError(0, 'Địa chỉ này không phải máy chủ WujoAgent.');
+      if (health.app !== 'claude-sessions') throw new ApiError(0, tr('Địa chỉ này không phải máy chủ WujoAgent.', 'This address is not a WujoAgent server.'));
       const info = await api.info(); // kiểm tra token
       return { id: `${Date.now()}`, name: info.name || host, host, port: link.port, token: link.token };
     } catch (e: any) {
@@ -141,7 +143,7 @@ export async function connectLink(link: ServerLink): Promise<Server> {
       if (e?.status === 401 || e?.status === 429) break; // sai token thì địa chỉ khác cũng vậy
     }
   }
-  throw lastError instanceof Error ? lastError : new ApiError(0, 'Không nối được máy chủ.');
+  throw lastError instanceof Error ? lastError : new ApiError(0, tr('Không nối được máy chủ.', 'Could not reach the server.'));
 }
 
 export class Api {
@@ -161,20 +163,20 @@ export class Api {
     try {
       res = await fetch(this.base + path, {
         method,
-        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json', 'Accept-Language': lang },
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: ac.signal,
       });
     } catch {
-      if (outer?.aborted) throw new ApiError(-1, 'Đã huỷ.');
-      throw new ApiError(0, 'Không nối được máy chủ. Kiểm tra IP, cổng, và máy tính đã chạy "wujoagent serve" chưa.');
+      if (outer?.aborted) throw new ApiError(-1, tr('Đã huỷ.', 'Cancelled.'));
+      throw new ApiError(0, tr('Không nối được máy chủ. Kiểm tra IP, cổng, và máy tính đã chạy "wujoagent serve" chưa.', 'Could not reach the server. Check the IP, the port, and that "wujoagent serve" is running on the computer.'));
     } finally {
       clearTimeout(timer);
       outer?.removeEventListener('abort', onOuter);
     }
     let data: any = null;
     try { data = await res.json(); } catch { /* không phải JSON */ }
-    if (!res.ok) throw new ApiError(res.status, data?.error || `Máy chủ trả lỗi ${res.status}.`);
+    if (!res.ok) throw new ApiError(res.status, data?.error || tr(`Máy chủ trả lỗi ${res.status}.`, `Server returned error ${res.status}.`));
     return data as T;
   }
 
@@ -249,18 +251,23 @@ export function sortWorkspaces(items: Workspace[], key: SortKey): Workspace[] {
 export function timeUntil(ts: number | null): string {
   if (!ts) return '';
   const m = Math.round((ts - Date.now()) / 60000);
-  if (m <= 0) return 'sắp đặt lại';
-  if (m < 60) return `đặt lại sau ${m} phút`;
-  if (m < 60 * 24) return `đặt lại sau ${Math.floor(m / 60)} giờ ${m % 60} phút`;
-  return `đặt lại sau ${Math.floor(m / 1440)} ngày ${Math.floor((m % 1440) / 60)} giờ`;
+  if (m <= 0) return tr('sắp đặt lại', 'resets soon');
+  if (m < 60) return tr(`đặt lại sau ${m} phút`, `resets in ${m} min`);
+  if (m < 60 * 24) return tr(`đặt lại sau ${Math.floor(m / 60)} giờ ${m % 60} phút`, `resets in ${Math.floor(m / 60)} h ${m % 60} min`);
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  return tr(`đặt lại sau ${d} ngày ${h} giờ`, `resets in ${d} ${d === 1 ? 'day' : 'days'} ${h} h`);
 }
 
 export function timeAgo(ts: number): string {
   if (!ts) return '';
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (s < 60) return 'vừa xong';
-  if (s < 3600) return `${Math.floor(s / 60)} phút trước`;
-  if (s < 86400) return `${Math.floor(s / 3600)} giờ trước`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)} ngày trước`;
-  return new Date(ts).toLocaleDateString('vi-VN');
+  if (s < 60) return tr('vừa xong', 'just now');
+  if (s < 3600) return tr(`${Math.floor(s / 60)} phút trước`, `${Math.floor(s / 60)} min ago`);
+  if (s < 86400) return tr(`${Math.floor(s / 3600)} giờ trước`, `${Math.floor(s / 3600)} h ago`);
+  if (s < 86400 * 30) {
+    const d = Math.floor(s / 86400);
+    return tr(`${d} ngày trước`, `${d} ${d === 1 ? 'day' : 'days'} ago`);
+  }
+  return new Date(ts).toLocaleDateString(locale);
 }

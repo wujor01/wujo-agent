@@ -7,9 +7,13 @@ import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, Session, matchComm
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Header, KeyboardShift, mono, useTheme } from '../ui';
 import { DiffSheet, SessionChange, sessionChanges } from '../Diff';
+import { locale, tr } from '../i18n';
 
-const MODE_LABEL: Record<Mode, string> = { default: 'Hỏi trước khi sửa', acceptEdits: 'Tự sửa file', plan: 'Lập kế hoạch' };
-const MODE_ORDER: Mode[] = ['default', 'acceptEdits', 'plan'];
+const MODE_LABEL: Record<Mode, string> = {
+  default: tr('Hỏi trước khi sửa', 'Ask before edits'), acceptEdits: tr('Tự sửa file', 'Auto-accept edits'), plan: tr('Lập kế hoạch', 'Plan mode'),
+  auto: tr('Tự động', 'Auto'),
+};
+const MODE_ORDER: Mode[] = ['default', 'acceptEdits', 'plan', 'auto'];
 
 /** Tóm tắt một lần gọi tool thành một dòng dễ đọc trên điện thoại. */
 export function toolSummary(name: string, input: any): string {
@@ -110,11 +114,13 @@ function buildRows(events: ChatEvent[]): Row[] {
       const row = e.toolId ? tools.get(e.toolId) : undefined;
       if (row) { row.result = e.text; row.isError = e.isError; }
     } else if (e.type === 'permission_resolved') {
-      const label = e.decision === 'cancelled' ? 'Yêu cầu quyền đã bị huỷ' : e.decision === 'deny' ? 'Đã từ chối' : e.decision === 'allow_always' ? 'Đã cho phép (luôn luôn)' : 'Đã cho phép';
+      const label = e.decision === 'cancelled' ? tr('Yêu cầu quyền đã bị huỷ', 'Permission request cancelled')
+        : e.decision === 'deny' ? tr('Đã từ chối', 'Denied')
+        : e.decision === 'allow_always' ? tr('Đã cho phép (luôn luôn)', 'Allowed (always)') : tr('Đã cho phép', 'Allowed');
       rows.push({ key, kind: 'note', text: label });
-    } else if (e.type === 'error') rows.push({ key, kind: 'error', text: e.text || 'Lỗi' });
-    else if (e.type === 'stopped') rows.push({ key, kind: 'note', text: e.text || 'Đã dừng.' });
-    else if (e.type === 'result' && !e.ok) rows.push({ key, kind: 'error', text: e.text || 'Lượt chat kết thúc với lỗi.' });
+    } else if (e.type === 'error') rows.push({ key, kind: 'error', text: e.text || tr('Lỗi', 'Error') });
+    else if (e.type === 'stopped') rows.push({ key, kind: 'note', text: e.text || tr('Đã dừng.', 'Stopped.') });
+    else if (e.type === 'result' && !e.ok) rows.push({ key, kind: 'error', text: e.text || tr('Lượt chat kết thúc với lỗi.', 'The turn ended with an error.') });
   }
   return rows;
 }
@@ -168,8 +174,8 @@ function PermissionCard({ pending, onAnswer, busy }: {
           </View>
         ))}
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <View style={{ flex: 1 }}><Button label="Gửi câu trả lời" disabled={!done} busy={busy} onPress={() => onAnswer('allow', answers)} /></View>
-          <Button kind="plain" label="Bỏ qua" disabled={busy} onPress={() => onAnswer('deny')} />
+          <View style={{ flex: 1 }}><Button label={tr('Gửi câu trả lời', 'Send answers')} disabled={!done} busy={busy} onPress={() => onAnswer('allow', answers)} /></View>
+          <Button kind="plain" label={tr('Bỏ qua', 'Skip')} disabled={busy} onPress={() => onAnswer('deny')} />
         </View>
       </View>
     );
@@ -179,16 +185,17 @@ function PermissionCard({ pending, onAnswer, busy }: {
   return (
     <View style={[s.perm, { borderColor: t.accent, backgroundColor: t.card }]}>
       <Text style={{ color: t.text, fontSize: 15, fontWeight: '600' }}>
-        {isPlan ? 'Claude đã lập xong kế hoạch. Cho làm theo?' : pending.title || `Claude muốn dùng ${pending.toolName}`}
+        {isPlan ? tr('Claude đã lập xong kế hoạch. Cho làm theo?', 'Claude has finished the plan. Go ahead with it?')
+          : pending.title || tr(`Claude muốn dùng ${pending.toolName}`, `Claude wants to use ${pending.toolName}`)}
       </Text>
       {pending.reason ? <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>{pending.reason}</Text> : null}
       <View style={[s.code, { backgroundColor: t.code, maxHeight: 220, overflow: 'hidden' }]}>
         <Text selectable style={{ color: t.text, fontFamily: mono, fontSize: 12.5 }}>{permissionDetail(pending)}</Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-        <View style={{ flexGrow: 1 }}><Button label={isPlan ? 'Đồng ý' : 'Cho phép'} busy={busy} onPress={() => onAnswer('allow')} /></View>
-        {pending.canAlways && !isPlan ? <Button kind="plain" label="Luôn cho phép" disabled={busy} onPress={() => onAnswer('allow_always')} /> : null}
-        <Button kind="danger" label="Từ chối" disabled={busy} onPress={() => onAnswer('deny')} />
+        <View style={{ flexGrow: 1 }}><Button label={isPlan ? tr('Đồng ý', 'Approve') : tr('Cho phép', 'Allow')} busy={busy} onPress={() => onAnswer('allow')} /></View>
+        {pending.canAlways && !isPlan ? <Button kind="plain" label={tr('Luôn cho phép', 'Always allow')} disabled={busy} onPress={() => onAnswer('allow_always')} /> : null}
+        <Button kind="danger" label={tr('Từ chối', 'Deny')} disabled={busy} onPress={() => onAnswer('deny')} />
       </View>
     </View>
   );
@@ -202,12 +209,12 @@ function Sheet({ title, onClose, children, action }: {
   const insets = useSafeAreaInsets(); // lấy từ app, vì Modal không có lề an toàn riêng
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Đóng" />
+      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={tr('Đóng', 'Close')} />
       <View style={[s.sheet, { backgroundColor: t.bg, borderColor: t.border, paddingBottom: 16 + insets.bottom }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 }}>
           <Text style={{ color: t.text, fontSize: 17, fontWeight: '600', flex: 1 }}>{title}</Text>
           {action}
-          <Button small kind="plain" label="Đóng" onPress={onClose} />
+          <Button small kind="plain" label={tr('Đóng', 'Close')} onPress={onClose} />
         </View>
         <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
       </View>
@@ -216,8 +223,9 @@ function Sheet({ title, onClose, children, action }: {
 }
 
 const LIMIT_LABEL: Record<string, string> = {
-  five_hour: 'Giới hạn 5 giờ', seven_day: 'Giới hạn 7 ngày', seven_day_opus: '7 ngày (Opus)',
-  seven_day_sonnet: '7 ngày (Sonnet)', overage: 'Dùng vượt mức',
+  five_hour: tr('Giới hạn 5 giờ', '5-hour limit'), seven_day: tr('Giới hạn 7 ngày', '7-day limit'),
+  seven_day_opus: tr('7 ngày (Opus)', '7 days (Opus)'), seven_day_sonnet: tr('7 ngày (Sonnet)', '7 days (Sonnet)'),
+  overage: tr('Dùng vượt mức', 'Extra usage'),
 };
 
 /** Thanh phần trăm có nhãn; đổi màu khi gần đầy. */
@@ -226,7 +234,7 @@ function Meter({ label, percent, note }: { label: string; percent: number; note?
   const p = Math.max(0, Math.min(100, Math.round(percent)));
   const color = p >= 90 ? t.danger : p >= 70 ? t.warn : t.accent;
   return (
-    <View style={{ marginBottom: 12 }} accessible accessibilityLabel={`${label}: ${p} phần trăm. ${note || ''}`}>
+    <View style={{ marginBottom: 12 }} accessible accessibilityLabel={tr(`${label}: ${p} phần trăm. ${note || ''}`, `${label}: ${p} percent. ${note || ''}`)}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text style={{ color: t.text, fontSize: 14 }}>{label}</Text>
         <Text style={{ color: t.text, fontSize: 14, fontWeight: '700' }}>{p}%</Text>
@@ -245,7 +253,8 @@ function SectionTitle({ text }: { text: string }) {
 }
 
 const MCP_LABEL: Record<string, string> = {
-  connected: 'đã kết nối', failed: 'lỗi', 'needs-auth': 'cần đăng nhập', pending: 'đang kết nối', disabled: 'đã tắt',
+  connected: tr('đã kết nối', 'connected'), failed: tr('lỗi', 'failed'), 'needs-auth': tr('cần đăng nhập', 'needs sign-in'),
+  pending: tr('đang kết nối', 'connecting'), disabled: tr('đã tắt', 'disabled'),
 };
 
 export function Chat({ api, session: initial, onBack }: { api: Api; session: Session; onBack: () => void }) {
@@ -295,9 +304,9 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
           setOffline(''); setLoaded(true);
         } catch (e: any) {
           if (ac.signal.aborted) return;
-          if (e?.status === 404) { setOffline('Session này đã bị xoá trên máy chủ.'); return; }
+          if (e?.status === 404) { setOffline(tr('Session này đã bị xoá trên máy chủ.', 'This session was deleted on the server.')); return; }
           if (e?.status === 401 || e?.status === 429) { setOffline(e.message); return; }
-          setOffline('Mất kết nối, đang thử lại…');
+          setOffline(tr('Mất kết nối, đang thử lại…', 'Connection lost, retrying…'));
           await new Promise((r) => setTimeout(r, 2000));
         }
       }
@@ -346,7 +355,7 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
 
   const suggestions = caps ? matchCommands(caps.commands, text) : [];
   const currentModel = session.model || 'default';
-  const modelName = caps?.models.find((m) => m.value === currentModel)?.name || (session.model || 'Mặc định');
+  const modelName = caps?.models.find((m) => m.value === currentModel)?.name || (session.model || tr('Mặc định', 'Default'));
 
   async function setMode(next: Mode) {
     try { setSession((await api.patch(session.id, { mode: next })).session); } catch (e: any) { setError(e.message); }
@@ -356,25 +365,25 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
   const footer = (
     <View>
       {partial ? <View style={s.row}><RichText text={partial} color={t.text} /></View> : null}
-      {busy && !partial && !pending ? <Text style={{ color: t.sub, paddingHorizontal: 16, paddingVertical: 6 }}>Claude đang làm việc…</Text> : null}
+      {busy && !partial && !pending ? <Text style={{ color: t.sub, paddingHorizontal: 16, paddingVertical: 6 }}>{tr('Claude đang làm việc…', 'Claude is working…')}</Text> : null}
       {pending ? <PermissionCard key={pending.requestId} pending={pending} onAnswer={answer} busy={answering} /> : null}
     </View>
   );
 
   return (
     <KeyboardShift>
-      <Header title={session.title || 'Session mới'} subtitle={session.cwd} onBack={onBack}
+      <Header title={session.title || tr('Session mới', 'New session')} subtitle={session.cwd} onBack={onBack}
         right={(
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           {changes.length > 0 ? (
             <Pressable onPress={() => { Keyboard.dismiss(); setSheet('changes'); }} hitSlop={8} accessibilityRole="button"
-              accessibilityLabel={`Session này đã sửa ${changes.length} file. Bấm để xem.`}
+              accessibilityLabel={tr(`Session này đã sửa ${changes.length} file. Bấm để xem.`, `This session changed ${changes.length} ${changes.length === 1 ? 'file' : 'files'}. Tap to view.`)}
               style={{ borderWidth: 1, borderColor: t.border, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-              <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>± {changes.length} file</Text>
+              <Text style={{ color: t.accent, fontSize: 13, fontWeight: '700' }}>± {changes.length} {tr('file', changes.length === 1 ? 'file' : 'files')}</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => { Keyboard.dismiss(); setSheet('settings'); loadCaps(false); }} hitSlop={10}
-            accessibilityRole="button" accessibilityLabel="Cài đặt session" style={{ paddingHorizontal: 6, paddingVertical: 2 }}>
+            accessibilityRole="button" accessibilityLabel={tr('Cài đặt session', 'Session settings')} style={{ paddingHorizontal: 6, paddingVertical: 2 }}>
             <Text style={{ color: t.accent, fontSize: 22 }}>⚙</Text>
           </Pressable>
           </View>
@@ -390,7 +399,7 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={!loaded ? undefined : (
           <Text style={{ color: t.sub, textAlign: 'center', marginTop: 40, paddingHorizontal: 24 }}>
-            Gõ tin nhắn đầu tiên để bắt đầu.
+            {tr('Gõ tin nhắn đầu tiên để bắt đầu.', 'Type your first message to start.')}
           </Text>
         )}
         ListFooterComponent={footer}
@@ -416,7 +425,7 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
         <ScrollView style={[s.suggest, { borderTopColor: t.border, backgroundColor: t.card }]} keyboardShouldPersistTaps="handled">
           {suggestions.map((c) => (
             <Pressable key={c.name} onPress={() => setText(`/${c.name} `)} accessibilityRole="button"
-              accessibilityLabel={`Lệnh ${c.name}`} style={({ pressed }) => [s.suggestRow, { opacity: pressed ? 0.6 : 1 }]}>
+              accessibilityLabel={tr(`Lệnh ${c.name}`, `Command ${c.name}`)} style={({ pressed }) => [s.suggestRow, { opacity: pressed ? 0.6 : 1 }]}>
               <Text numberOfLines={1} style={{ color: t.text, fontSize: 14 }}>
                 <Text style={{ fontFamily: mono, fontWeight: '700' }}>/{c.name}</Text>
                 {c.argumentHint ? <Text style={{ color: t.sub, fontFamily: mono }}> {c.argumentHint}</Text> : null}
@@ -429,11 +438,11 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
       <View style={[s.composer, { borderTopColor: t.border, backgroundColor: t.bg }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginBottom: 8, opacity: busy ? 0.5 : 1 }}>
           <Pressable onPress={cycleMode} disabled={busy} hitSlop={6} accessibilityRole="button"
-            accessibilityLabel={`Chế độ: ${MODE_LABEL[session.mode]}. Bấm để đổi.`}>
-            <Text style={{ color: t.sub, fontSize: 12.5 }}>Chế độ: <Text style={{ color: t.accent, fontWeight: '600' }}>{MODE_LABEL[session.mode]}</Text></Text>
+            accessibilityLabel={tr(`Chế độ: ${MODE_LABEL[session.mode]}. Bấm để đổi.`, `Mode: ${MODE_LABEL[session.mode]}. Tap to change.`)}>
+            <Text style={{ color: t.sub, fontSize: 12.5 }}>{tr('Chế độ', 'Mode')}: <Text style={{ color: t.accent, fontWeight: '600' }}>{MODE_LABEL[session.mode]}</Text></Text>
           </Pressable>
           <Pressable onPress={() => { Keyboard.dismiss(); setSheet('model'); }} disabled={busy} hitSlop={6} accessibilityRole="button"
-            accessibilityLabel={`Model: ${modelName}. Bấm để đổi.`}>
+            accessibilityLabel={tr(`Model: ${modelName}. Bấm để đổi.`, `Model: ${modelName}. Tap to change.`)}>
             <Text style={{ color: t.sub, fontSize: 12.5 }}>Model: <Text style={{ color: t.accent, fontWeight: '600' }}>{modelName}</Text></Text>
           </Pressable>
         </View>
@@ -441,24 +450,24 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Nhắn cho Claude…"
+            placeholder={tr('Nhắn cho Claude…', 'Message Claude…')}
             placeholderTextColor={t.sub}
-            accessibilityLabel="Tin nhắn"
+            accessibilityLabel={tr('Tin nhắn', 'Message')}
             multiline
             style={[s.input, { color: t.text, borderColor: t.border, backgroundColor: t.card }]}
           />
           {busy
-            ? <Button kind="danger" label="Dừng" onPress={() => api.interrupt(session.id).catch((e) => setError(e.message))} />
-            : <Button label="Gửi" onPress={send} busy={sending} disabled={!text.trim()} />}
+            ? <Button kind="danger" label={tr('Dừng', 'Stop')} onPress={() => api.interrupt(session.id).catch((e) => setError(e.message))} />
+            : <Button label={tr('Gửi', 'Send')} onPress={send} busy={sending} disabled={!text.trim()} />}
         </View>
       </View>
       {sheet === 'model' ? (
-        <Sheet title="Chọn model" onClose={() => setSheet(null)}>
+        <Sheet title={tr('Chọn model', 'Choose model')} onClose={() => setSheet(null)}>
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 20 }} /> : null}
           {capsError && !caps ? (
             <View>
               <Text style={{ color: t.danger, marginBottom: 10 }}>{capsError}</Text>
-              <Button kind="plain" label="Thử lại" onPress={() => loadCaps(true)} />
+              <Button kind="plain" label={tr('Thử lại', 'Retry')} onPress={() => loadCaps(true)} />
             </View>
           ) : null}
           {(caps?.models || []).map((m) => {
@@ -472,26 +481,27 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
               </Pressable>
             );
           })}
-          <Text style={{ color: t.sub, fontSize: 12, marginTop: 6, marginBottom: 8 }}>Model mới áp dụng từ tin nhắn kế tiếp.</Text>
+          <Text style={{ color: t.sub, fontSize: 12, marginTop: 6, marginBottom: 8 }}>{tr('Model mới áp dụng từ tin nhắn kế tiếp.', 'The new model applies from the next message.')}</Text>
         </Sheet>
       ) : null}
       {sheet === 'changes' ? (
-        <Sheet title="File session này đã sửa" onClose={() => setSheet(null)}>
+        <Sheet title={tr('File session này đã sửa', 'Files changed by this session')} onClose={() => setSheet(null)}>
           {changes.map((c) => (
             <Pressable key={c.path} onPress={() => setViewing(c)} accessibilityRole="button"
-              accessibilityLabel={`Xem thay đổi của ${c.name}`}
+              accessibilityLabel={tr(`Xem thay đổi của ${c.name}`, `View changes in ${c.name}`)}
               style={[s.option, { borderColor: t.border, borderWidth: 1, backgroundColor: t.card, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text numberOfLines={2} ellipsizeMode="head" style={{ color: t.text, fontFamily: mono, fontSize: 13 }}>{c.name}</Text>
                 <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>
-                  {c.created ? 'ghi toàn bộ file' : 'sửa'} · {c.edits} lần
+                  {c.created ? tr('ghi toàn bộ file', 'whole file written') : tr('sửa', 'edited')} · {tr(`${c.edits} lần`, `${c.edits} ${c.edits === 1 ? 'edit' : 'edits'}`)}
                 </Text>
               </View>
               <Text style={{ color: t.sub, fontSize: 18 }}>›</Text>
             </Pressable>
           ))}
           <Text style={{ color: t.sub, fontSize: 12, marginTop: 4, marginBottom: 8 }}>
-            Bấm vào file để xem khác biệt so với commit gần nhất. File không thuộc git repo thì hiện chính các lần sửa của session.
+            {tr('Bấm vào file để xem khác biệt so với commit gần nhất. File không thuộc git repo thì hiện chính các lần sửa của session.',
+              "Tap a file to see its diff against the last commit. Files outside a git repo show the session's own edits.")}
           </Text>
         </Sheet>
       ) : null}
@@ -500,19 +510,19 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
           onClose={() => setViewing(null)} />
       ) : null}
       {sheet === 'settings' ? (
-        <Sheet title="Cài đặt session" onClose={() => setSheet(null)}
-          action={<Button small kind="plain" label="Tải lại" busy={capsLoading} onPress={() => loadCaps(true)} />}>
+        <Sheet title={tr('Cài đặt session', 'Session settings')} onClose={() => setSheet(null)}
+          action={<Button small kind="plain" label={tr('Tải lại', 'Reload')} busy={capsLoading} onPress={() => loadCaps(true)} />}>
           {capsError ? <Text style={{ color: t.danger, marginBottom: 6 }}>{capsError}</Text> : null}
 
           <SectionTitle text="Model" />
           <Pressable onPress={() => setSheet('model')} disabled={busy} accessibilityRole="button"
-            accessibilityLabel={`Model: ${modelName}. Bấm để đổi.`}
+            accessibilityLabel={tr(`Model: ${modelName}. Bấm để đổi.`, `Model: ${modelName}. Tap to change.`)}
             style={[s.option, { borderColor: t.border, borderWidth: 1, backgroundColor: t.card, flexDirection: 'row', alignItems: 'center', opacity: busy ? 0.5 : 1 }]}>
             <Text style={{ color: t.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{modelName}</Text>
-            <Text style={{ color: t.accent, fontSize: 14 }}>Đổi</Text>
+            <Text style={{ color: t.accent, fontSize: 14 }}>{tr('Đổi', 'Change')}</Text>
           </Pressable>
 
-          <SectionTitle text="Chế độ quyền" />
+          <SectionTitle text={tr('Chế độ quyền', 'Permission mode')} />
           {MODE_ORDER.map((m) => {
             const on = m === session.mode;
             return (
@@ -522,33 +532,36 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
               </Pressable>
             );
           })}
+          <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>
+            {tr('Tự động: Claude tự duyệt các thao tác an toàn và chỉ hỏi bạn khi không chắc.', 'Auto: Claude approves safe actions itself and asks you only when unsure.')}
+          </Text>
 
-          <SectionTitle text="Mức sử dụng" />
+          <SectionTitle text={tr('Mức sử dụng', 'Usage')} />
           {session.context ? (
-            <Meter label="Ngữ cảnh của session" percent={session.context.percentage}
-              note={`${session.context.totalTokens.toLocaleString('vi-VN')} / ${session.context.maxTokens.toLocaleString('vi-VN')} token`} />
+            <Meter label={tr('Ngữ cảnh của session', 'Session context')} percent={session.context.percentage}
+              note={`${session.context.totalTokens.toLocaleString(locale)} / ${session.context.maxTokens.toLocaleString(locale)} ${tr('token', 'tokens')}`} />
           ) : null}
           {Object.entries(limits).map(([type, w]) => (
             <Meter key={type} label={LIMIT_LABEL[type] || type} percent={w.percent} note={timeUntil(w.resetsAt)} />
           ))}
           {!session.context && Object.keys(limits).length === 0 ? (
-            <Text style={{ color: t.sub, fontSize: 13, marginBottom: 8 }}>Chưa có số liệu. Gửi một tin nhắn, số liệu sẽ cập nhật sau lượt đó.</Text>
+            <Text style={{ color: t.sub, fontSize: 13, marginBottom: 8 }}>{tr('Chưa có số liệu. Gửi một tin nhắn, số liệu sẽ cập nhật sau lượt đó.', 'No data yet. Send a message and the numbers will update after that turn.')}</Text>
           ) : null}
           {typeof session.costUsd === 'number' ? (
             <Text style={{ color: t.sub, fontSize: 13 }}>
-              Chi phí quy đổi của session qua app: ${session.costUsd.toFixed(2)}
+              {tr('Chi phí quy đổi của session qua app', 'Equivalent cost of this session via the app')}: ${session.costUsd.toFixed(2)}
             </Text>
           ) : null}
           {caps?.account?.plan ? (
             <Text style={{ color: t.sub, fontSize: 13, marginTop: 2 }}>
-              Gói: {caps.account.plan}{caps.account.organization ? ` · ${caps.account.organization}` : ''}
+              {tr('Gói', 'Plan')}: {caps.account.plan}{caps.account.organization ? ` · ${caps.account.organization}` : ''}
             </Text>
           ) : null}
 
           <SectionTitle text="MCP server" />
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 12 }} /> : null}
           {caps && caps.mcp.length === 0 ? (
-            <Text style={{ color: t.sub, fontSize: 13, marginBottom: 8 }}>Workspace này chưa cấu hình MCP server nào.</Text>
+            <Text style={{ color: t.sub, fontSize: 13, marginBottom: 8 }}>{tr('Workspace này chưa cấu hình MCP server nào.', 'No MCP servers are configured for this workspace.')}</Text>
           ) : null}
           {(caps?.mcp || []).map((m) => (
             <View key={m.name} style={[s.option, { borderColor: t.border, borderWidth: 1, backgroundColor: t.card }]}>
@@ -559,13 +572,13 @@ export function Chat({ api, session: initial, onBack }: { api: Api; session: Ses
                 </Text>
               </View>
               <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>
-                {m.tools.length} tool{m.scope ? ` · ${m.scope}` : ''}
+                {m.tools.length} {tr('tool', m.tools.length === 1 ? 'tool' : 'tools')}{m.scope ? ` · ${m.scope}` : ''}
               </Text>
               {m.error ? <Text selectable style={{ color: t.danger, fontSize: 12, marginTop: 4 }}>{m.error}</Text> : null}
             </View>
           ))}
           <Text style={{ color: t.sub, fontSize: 12, marginTop: 4, marginBottom: 8 }}>
-            Thêm, xoá hay đăng nhập MCP server thì làm trên máy tính bằng lệnh claude mcp.
+            {tr('Thêm, xoá hay đăng nhập MCP server thì làm trên máy tính bằng lệnh claude mcp.', 'To add, remove or sign in to MCP servers, use the claude mcp command on the computer.')}
           </Text>
         </Sheet>
       ) : null}

@@ -9,6 +9,12 @@ Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản ti�
 - Mã QR giờ trỏ về `agent.wujo.dev/add`: quét bằng camera của iPhone sẽ mở thẳng app đã cài. Chưa cài app thì trang đó cho chọn mở app hoặc dùng bản web trên chính máy tính.
 - Token và địa chỉ máy tính vẫn nằm sau dấu `#` trong link, nên không được gửi lên `agent.wujo.dev`.
 
+### Thêm
+
+- App tự chọn tiếng Việt hoặc tiếng Anh theo ngôn ngữ của máy; thông báo lỗi từ máy tính cũng theo ngôn ngữ đó.
+- Dòng `..` ở đầu danh sách thư mục để đi ra thư mục cha.
+- Chế độ quyền **Tự động**: Claude tự duyệt các thao tác an toàn và chỉ hỏi khi không chắc.
+
 ### Sửa lỗi
 
 - Xem diff báo "file nằm ngoài repo" khi thư mục được viết theo tên ngắn 8.3 của Windows.

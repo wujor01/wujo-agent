@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { HttpError } from './manager.js';
 import { gitInfo, gitRun, gitDiff } from './git.js';
+import { t, withLang, langOf } from './lang.js';
 
 const MAX_BODY = 1024 * 1024; // 1 MB
 const MAX_FAILS = 10; // số lần sai token mỗi phút, mỗi IP
@@ -30,10 +31,10 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
     if (fails.size > 1000) for (const [k, x] of fails) if (x.resetAt < now) fails.delete(k);
     let f = fails.get(ip);
     if (f && f.resetAt < now) { fails.delete(ip); f = undefined; }
-    if (f && f.count >= MAX_FAILS) throw new HttpError(429, 'Sai token quá nhiều lần. Thử lại sau một phút.');
+    if (f && f.count >= MAX_FAILS) throw new HttpError(429, t('Sai token quá nhiều lần. Thử lại sau một phút.', 'Too many wrong tokens. Try again in a minute.'));
     if (!f) { f = { count: 0, resetAt: now + 60000 }; fails.set(ip, f); }
     f.count++;
-    throw new HttpError(401, 'Token không đúng.');
+    throw new HttpError(401, t('Token không đúng.', 'Wrong token.'));
   }
 
   async function readJson(req) {
@@ -41,7 +42,7 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
     let size = 0;
     for await (const chunk of req) {
       size += chunk.length;
-      if (size > MAX_BODY) throw new HttpError(413, 'Nội dung gửi lên quá lớn (tối đa 1 MB).');
+      if (size > MAX_BODY) throw new HttpError(413, t('Nội dung gửi lên quá lớn (tối đa 1 MB).', 'The request is too large (1 MB at most).'));
       chunks.push(chunk);
     }
     if (!size) return {};
@@ -50,7 +51,7 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('not object');
       return body;
     } catch {
-      throw new HttpError(400, 'JSON không hợp lệ.');
+      throw new HttpError(400, t('JSON không hợp lệ.', 'Invalid JSON.'));
     }
   }
 
@@ -145,12 +146,12 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
         return send(res, 200, { session: manager.interrupt(id) });
       } else if (sub === 'capabilities' && method === 'GET') {
         // model, lệnh gạch chéo và MCP server dùng được trong thư mục của session
-        if (!capabilities) throw new HttpError(501, 'Máy chủ này không hỗ trợ.');
+        if (!capabilities) throw new HttpError(501, t('Máy chủ này không hỗ trợ.', 'This server does not support it.'));
         const session = manager.get(id);
         try {
           return send(res, 200, await capabilities(session.cwd, { fresh: url.searchParams.get('fresh') === '1' }));
         } catch (err) {
-          throw new HttpError(502, `Không hỏi được Claude Code: ${err?.message || err}`);
+          throw new HttpError(502, t(`Không hỏi được Claude Code: ${err?.message || err}`, `Could not reach Claude Code: ${err?.message || err}`));
         }
       } else if (sub === 'git') {
         const session = manager.get(id);
@@ -162,7 +163,7 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
         }
       }
     }
-    throw new HttpError(404, 'Không có đường dẫn này.');
+    throw new HttpError(404, t('Không có đường dẫn này.', 'No such path.'));
   }
 
   function serveStatic(req, res, url) {
@@ -171,7 +172,7 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
       return res.end('WujoAgent đang chạy. Bản web chưa được build (xem README: npm run build:web).');
     }
     let rel;
-    try { rel = decodeURIComponent(url.pathname); } catch { throw new HttpError(400, 'Đường dẫn không hợp lệ.'); }
+    try { rel = decodeURIComponent(url.pathname); } catch { throw new HttpError(400, t('Đường dẫn không hợp lệ.', 'Invalid path.')); }
     if (rel.endsWith('/')) rel += 'index.html';
     const root = path.resolve(webDir);
     let file = path.join(root, rel);
@@ -189,29 +190,29 @@ export function createServer({ manager, token, webDir, capabilities, name = os.h
     });
   }
 
-  return http.createServer(async (req, res) => {
+  return http.createServer((req, res) => withLang(langOf(req.headers['accept-language']), async () => {
     try {
       let url;
-      try { url = new URL(req.url, 'http://x'); } catch { throw new HttpError(400, 'Đường dẫn không hợp lệ.'); }
+      try { url = new URL(req.url, 'http://x'); } catch { throw new HttpError(400, t('Đường dẫn không hợp lệ.', 'Invalid path.')); }
       if (req.method === 'OPTIONS') { res.writeHead(204, cors()); return res.end(); }
       if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return await api(req, res, url);
-      if (req.method !== 'GET') throw new HttpError(404, 'Không có đường dẫn này.');
+      if (req.method !== 'GET') throw new HttpError(404, t('Không có đường dẫn này.', 'No such path.'));
       return serveStatic(req, res, url);
     } catch (err) {
       if (res.headersSent) return res.end();
       if (err instanceof HttpError) return send(res, err.status, { error: err.message });
       console.error(err);
-      return send(res, 500, { error: `Lỗi server: ${err?.message || err}` });
+      return send(res, 500, { error: t(`Lỗi server: ${err?.message || err}`, `Server error: ${err?.message || err}`) });
     }
-  });
+  }));
 }
 
 function existingDir(input) {
-  if (typeof input !== 'string' || !input.trim()) throw new HttpError(400, 'Thiếu thư mục (path).');
+  if (typeof input !== 'string' || !input.trim()) throw new HttpError(400, t('Thiếu thư mục (path).', 'Missing folder (path).'));
   const dir = path.resolve(input.trim());
   let stat;
   try { stat = fs.statSync(dir); } catch { /* báo lỗi bên dưới */ }
-  if (!stat || !stat.isDirectory()) throw new HttpError(400, `Thư mục không tồn tại: ${dir}`);
+  if (!stat || !stat.isDirectory()) throw new HttpError(400, t(`Thư mục không tồn tại: ${dir}`, `Folder does not exist: ${dir}`));
   return dir;
 }
 
@@ -239,7 +240,7 @@ export function listDirs(input) {
   try {
     entries = fs.readdirSync(dir, { withFileTypes: true });
   } catch {
-    throw new HttpError(400, `Không đọc được thư mục: ${dir}`);
+    throw new HttpError(400, t(`Không đọc được thư mục: ${dir}`, `Could not read the folder: ${dir}`));
   }
   const dirs = entries
     .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules' && !e.name.startsWith('$'))

@@ -1,0 +1,4 @@
+{
+  "NSCameraUsageDescription": "WujoAgent dùng camera để quét mã QR thêm máy chủ.",
+  "NSLocalNetworkUsageDescription": "WujoAgent kết nối tới máy tính của bạn trong mạng nội bộ hoặc Tailscale để điều khiển Claude Code."
+}

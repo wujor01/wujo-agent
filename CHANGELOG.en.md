@@ -9,6 +9,12 @@ Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGEL
 - The QR code now points to `agent.wujo.dev/add`: scanning it with the iPhone camera opens the installed app directly. Without the app, that page offers to open the app or use the web version on your own computer.
 - The token and computer addresses still sit after the `#` in the link, so they are never sent to `agent.wujo.dev`.
 
+### Added
+
+- The app picks Vietnamese or English from the device language; error messages from the computer follow the same language.
+- A `..` row at the top of folder lists to go up to the parent folder.
+- **Auto** permission mode: Claude approves safe actions itself and asks only when unsure.
+
 ### Fixed
 
 - The diff view reported "file is outside this repo" when the folder was written with a Windows 8.3 short name.

@@ -6,6 +6,7 @@ import {
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Server } from './api';
+import { tr } from './i18n';
 
 export type Theme = {
   bg: string; card: string; border: string; text: string; sub: string; accent: string; accentText: string;
@@ -88,7 +89,7 @@ export function Header({ title, subtitle, onBack, right }: {
   return (
     <View style={[s.header, { borderBottomColor: t.border, backgroundColor: t.bg }]}>
       {onBack ? (
-        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Quay lại" style={s.back}>
+        <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel={tr('Quay lại', 'Back')} style={s.back}>
           <Text style={{ color: t.accent, fontSize: 28, lineHeight: 30 }}>‹</Text>
         </Pressable>
       ) : null}

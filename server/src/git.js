@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { HttpError } from './manager.js';
+import { t } from './lang.js';
 
 // Chỉ những thao tác này được gọi từ xa. Không qua shell, tham số cố định.
 export const GIT_OPS = {
@@ -44,7 +45,7 @@ function git(cwd, args, { timeout = 15000 } = {}) {
 /** Thông tin repo của một thư mục; { repo: false } nếu không phải git repo. */
 export async function gitInfo(cwd) {
   const top = await git(cwd, ['rev-parse', '--show-toplevel']);
-  if (top.missing) return { repo: false, reason: 'Máy chủ chưa cài git.' };
+  if (top.missing) return { repo: false, reason: t('Máy chủ chưa cài git.', 'git is not installed on the computer.') };
   if (!top.ok) return { repo: false };
 
   const [status, log, remote] = await Promise.all([
@@ -68,7 +69,7 @@ export async function gitInfo(cwd) {
 
   if (!status.ok) {
     // Không đọc được trạng thái thì nói rõ, đừng để app hiểu nhầm là repo sạch.
-    info.error = status.timedOut ? 'git status chạy quá lâu.' : (status.stderr.trim() || 'Không đọc được trạng thái repo.');
+    info.error = status.timedOut ? t('git status chạy quá lâu.', 'git status took too long.') : (status.stderr.trim() || t('Không đọc được trạng thái repo.', 'Could not read the repo status.'));
   }
 
   // Với -z mỗi mục kết thúc bằng NUL và tên file giữ nguyên văn (không bị bọc ngoặc kép).
@@ -147,15 +148,15 @@ const MAX_DIFF = 300 * 1024;
  * `file` là đường dẫn tuyệt đối hoặc tương đối so với `cwd`; phải nằm trong repo.
  */
 export async function gitDiff(cwd, file) {
-  if (typeof file !== 'string' || !file.trim()) throw new HttpError(400, 'Thiếu tên file.');
+  if (typeof file !== 'string' || !file.trim()) throw new HttpError(400, t('Thiếu tên file.', 'Missing file name.'));
   const top = await git(cwd, ['rev-parse', '--show-toplevel']);
-  if (!top.ok) throw new HttpError(400, 'Thư mục này không phải git repo.');
+  if (!top.ok) throw new HttpError(400, t('Thư mục này không phải git repo.', 'This folder is not a git repo.'));
   // So sánh trên đường dẫn thật: cùng một thư mục có thể được viết theo nhiều cách (tên ngắn 8.3 của
   // Windows như RUNNER~1, symlink như /tmp → /private/tmp trên macOS), còn git luôn trả về dạng đầy đủ.
   const root = realPath(top.stdout.trim());
   const abs = realPath(path.resolve(cwd, file.trim()));
   const rel = path.relative(root, abs);
-  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) throw new HttpError(400, 'File nằm ngoài repo này.');
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) throw new HttpError(400, t('File nằm ngoài repo này.', 'The file is outside this repo.'));
   const shown = rel.split(path.sep).join('/');
   const out = { file: shown, diff: '', untracked: false, binary: false, deleted: false, truncated: false };
 
@@ -167,14 +168,14 @@ export async function gitDiff(cwd, file) {
     let buf;
     try {
       const stat = fs.statSync(abs);
-      if (stat.isDirectory()) { out.diff = '(thư mục mới chưa được git theo dõi)'; return out; }
+      if (stat.isDirectory()) { out.diff = t('(thư mục mới chưa được git theo dõi)', '(new folder not tracked by git)'); return out; }
       const fd = fs.openSync(abs, 'r');
       buf = Buffer.alloc(Math.min(stat.size, MAX_DIFF));
       fs.readSync(fd, buf, 0, buf.length, 0);
       fs.closeSync(fd);
       out.truncated = stat.size > MAX_DIFF;
     } catch {
-      throw new HttpError(404, `Không đọc được file: ${shown}`);
+      throw new HttpError(404, t(`Không đọc được file: ${shown}`, `Could not read the file: ${shown}`));
     }
     if (buf.includes(0)) { out.binary = true; return out; }
     const lines = buf.toString('utf8').replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
@@ -186,7 +187,7 @@ export async function gitDiff(cwd, file) {
   const hasHead = (await git(root, ['rev-parse', '--verify', '-q', 'HEAD'])).ok;
   const args = hasHead ? ['diff', 'HEAD'] : ['diff', '--cached'];
   const res = await git(root, ['-c', 'core.quotepath=false', ...args, '--no-color', '--no-ext-diff', '--', rel]);
-  if (!res.ok) throw new HttpError(502, stripCredentials(res.stderr.trim()) || 'git diff thất bại.');
+  if (!res.ok) throw new HttpError(502, stripCredentials(res.stderr.trim()) || t('git diff thất bại.', 'git diff failed.'));
   let text = res.stdout.replace(/\r\n/g, '\n');
   if (/^Binary files .* differ$/m.test(text)) { out.binary = true; return out; }
   out.deleted = /^deleted file mode/m.test(text);
@@ -202,13 +203,13 @@ export async function gitDiff(cwd, file) {
 /** Chạy fetch / pull / push. Trả output nguyên văn để người dùng tự đọc lỗi. */
 export async function gitRun(cwd, op) {
   const args = GIT_OPS[op];
-  if (!args) throw new HttpError(400, `Thao tác git không hỗ trợ: ${op}. Dùng: ${Object.keys(GIT_OPS).join(', ')}.`);
+  if (!args) throw new HttpError(400, t(`Thao tác git không hỗ trợ: ${op}. Dùng: ${Object.keys(GIT_OPS).join(', ')}.`, `Unsupported git operation: ${op}. Use: ${Object.keys(GIT_OPS).join(', ')}.`));
   const top = await git(cwd, ['rev-parse', '--show-toplevel']);
-  if (!top.ok) throw new HttpError(400, 'Thư mục này không phải git repo.');
+  if (!top.ok) throw new HttpError(400, t('Thư mục này không phải git repo.', 'This folder is not a git repo.'));
   const res = await git(cwd, args, { timeout: 120000 });
   let output = stripCredentials((res.stdout + res.stderr).trim());
-  if (res.timedOut) output += '\n(Quá 120 giây, đã dừng. Có thể git đang chờ đăng nhập trên máy chủ.)';
-  return { ok: res.ok, op, output: output || (res.ok ? 'Xong.' : 'Thất bại, không có thông báo.') };
+  if (res.timedOut) output += t('\n(Quá 120 giây, đã dừng. Có thể git đang chờ đăng nhập trên máy chủ.)', '\n(Stopped after 120 seconds. git may be waiting for a sign-in on the computer.)');
+  return { ok: res.ok, op, output: output || (res.ok ? t('Xong.', 'Done.') : t('Thất bại, không có thông báo.', 'Failed with no message.')) };
 }
 
 // Remote dạng https://user:token@host/... không được lộ ra app.

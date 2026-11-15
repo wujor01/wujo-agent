@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { flatten, clip } from './history.js';
+import { t } from './lang.js';
 
 /**
  * Chạy một lượt chat bằng Claude Agent SDK và đổi các message của SDK
@@ -125,7 +126,7 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
   } finally {
     finish();
   }
-  if (!sawResult && !signal.aborted) throw new Error('Claude kết thúc mà không trả kết quả.');
+  if (!sawResult && !signal.aborted) throw new Error(t('Claude kết thúc mà không trả kết quả.', 'Claude ended without returning a result.'));
   if (signal.aborted && !sawResult) throw new Error('aborted');
 }
 

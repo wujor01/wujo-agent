@@ -2,8 +2,11 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { normPath } from './history.js';
+import { t } from './lang.js';
 
-export const MODES = ['default', 'acceptEdits', 'plan'];
+// 'auto': một bộ phân loại duyệt hoặc từ chối từng thao tác, chỉ hỏi người dùng khi nó không tự quyết được.
+// Không có 'bypassPermissions': điều khiển từ xa mà bỏ hẳn kiểm tra quyền thì quá rủi ro.
+export const MODES = ['default', 'acceptEdits', 'plan', 'auto'];
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -64,13 +67,13 @@ export class Manager {
   async open({ cwd, title, mode, model, claudeSessionId }) {
     if (!claudeSessionId) return this.create({ cwd, title, mode, model });
     if (typeof claudeSessionId !== 'string' || !/^[0-9a-f-]{8,64}$/i.test(claudeSessionId)) {
-      throw new HttpError(400, 'claudeSessionId không hợp lệ.');
+      throw new HttpError(400, t('claudeSessionId không hợp lệ.', 'Invalid claudeSessionId.'));
     }
     for (const m of this.sessions.values()) {
       if (m.claudeSessionId === claudeSessionId) return this.#view(m);
     }
     const info = await this.history.info(claudeSessionId, cwd);
-    if (!info) throw new HttpError(404, 'Không tìm thấy session Claude này trong thư mục đã chọn.');
+    if (!info) throw new HttpError(404, t('Không tìm thấy session Claude này trong thư mục đã chọn.', 'This Claude session was not found in the chosen folder.'));
     // Bấm đúp: yêu cầu thứ hai có thể đã tạo xong trong lúc mình chờ đọc lịch sử.
     for (const m of this.sessions.values()) {
       if (m.claudeSessionId === claudeSessionId) return this.#view(m);
@@ -86,13 +89,13 @@ export class Manager {
 
   /** Các thư mục con của `root` (và chính nó) kèm số session trong từng workspace. */
   async workspaces(root) {
-    if (typeof root !== 'string' || !root.trim()) throw new HttpError(400, 'Thiếu thư mục gốc (root).');
+    if (typeof root !== 'string' || !root.trim()) throw new HttpError(400, t('Thiếu thư mục gốc (root).', 'Missing root folder (root).'));
     root = path.resolve(root.trim());
     let entries;
     try {
       entries = fs.readdirSync(root, { withFileTypes: true });
     } catch {
-      throw new HttpError(400, `Không đọc được thư mục: ${root}`);
+      throw new HttpError(400, t(`Không đọc được thư mục: ${root}`, `Could not read the folder: ${root}`));
     }
     const dirs = [{ name: path.basename(root) || root, path: root, isRoot: true }];
     for (const e of entries) {
@@ -139,7 +142,7 @@ export class Manager {
 
   /** Session của một workspace: session Claude có sẵn gộp với session của hệ thống này. */
   async workspaceSessions(dir) {
-    if (typeof dir !== 'string' || !dir.trim()) throw new HttpError(400, 'Thiếu thư mục (path).');
+    if (typeof dir !== 'string' || !dir.trim()) throw new HttpError(400, t('Thiếu thư mục (path).', 'Missing folder (path).'));
     dir = path.resolve(dir.trim());
     const key = normPath(dir);
     const mine = [...this.sessions.values()].filter((m) => normPath(m.cwd) === key);
@@ -174,19 +177,19 @@ export class Manager {
   /** null = model mặc định của Claude Code. */
   #model(model) {
     if (model === undefined || model === null || model === '' || model === 'default') return null;
-    if (typeof model !== 'string' || !/^[\w.:\-\[\]]{1,100}$/.test(model)) throw new HttpError(400, 'Tên model không hợp lệ.');
+    if (typeof model !== 'string' || !/^[\w.:\-\[\]]{1,100}$/.test(model)) throw new HttpError(400, t('Tên model không hợp lệ.', 'Invalid model name.'));
     return model;
   }
 
   create({ cwd, title, mode, model }) {
-    if (typeof cwd !== 'string' || !cwd.trim()) throw new HttpError(400, 'Thiếu thư mục làm việc (cwd).');
+    if (typeof cwd !== 'string' || !cwd.trim()) throw new HttpError(400, t('Thiếu thư mục làm việc (cwd).', 'Missing working folder (cwd).'));
     cwd = cwd.trim();
     let stat;
     try { stat = fs.statSync(cwd); } catch { /* xử lý bên dưới */ }
-    if (!stat || !stat.isDirectory()) throw new HttpError(400, `Thư mục không tồn tại: ${cwd}`);
+    if (!stat || !stat.isDirectory()) throw new HttpError(400, t(`Thư mục không tồn tại: ${cwd}`, `Folder does not exist: ${cwd}`));
     mode = mode || 'default';
     model = this.#model(model);
-    if (!MODES.includes(mode)) throw new HttpError(400, `Chế độ không hợp lệ: ${mode}`);
+    if (!MODES.includes(mode)) throw new HttpError(400, t(`Chế độ không hợp lệ: ${mode}`, `Invalid mode: ${mode}`));
     const now = Date.now();
     const meta = {
       id: crypto.randomBytes(4).toString('hex'),
@@ -207,12 +210,12 @@ export class Manager {
   patch(id, { title, mode, model }) {
     const meta = this.#meta(id);
     if (title !== undefined) {
-      if (typeof title !== 'string') throw new HttpError(400, 'title phải là chuỗi.');
+      if (typeof title !== 'string') throw new HttpError(400, t('title phải là chuỗi.', 'title must be a string.'));
       meta.title = title.trim().slice(0, 80);
     }
     if (model !== undefined) meta.model = this.#model(model);
     if (mode !== undefined) {
-      if (!MODES.includes(mode)) throw new HttpError(400, `Chế độ không hợp lệ: ${mode}`);
+      if (!MODES.includes(mode)) throw new HttpError(400, t(`Chế độ không hợp lệ: ${mode}`, `Invalid mode: ${mode}`));
       meta.mode = mode;
     }
     this.#save();
@@ -237,8 +240,8 @@ export class Manager {
 
   send(id, text) {
     const meta = this.#meta(id);
-    if (typeof text !== 'string' || !text.trim()) throw new HttpError(400, 'Tin nhắn rỗng.');
-    if (meta.status !== 'idle') throw new HttpError(409, 'Session đang chạy một lượt khác. Chờ xong hoặc bấm Dừng.');
+    if (typeof text !== 'string' || !text.trim()) throw new HttpError(400, t('Tin nhắn rỗng.', 'The message is empty.'));
+    if (meta.status !== 'idle') throw new HttpError(409, t('Session đang chạy một lượt khác. Chờ xong hoặc bấm Dừng.', 'This session is busy with another turn. Wait for it or tap Stop.'));
     const live = this.#live(id);
     if (!meta.title) meta.title = text.trim().replace(/\s+/g, ' ').slice(0, 40);
     meta.status = 'running';
@@ -261,7 +264,7 @@ export class Manager {
     Promise.resolve(run)
       .catch((err) => {
         if (!this.sessions.has(id)) return;
-        const text = signal.aborted ? 'Đã dừng.' : `Lỗi: ${err?.message || err}`;
+        const text = signal.aborted ? t('Đã dừng.', 'Stopped.') : t(`Lỗi: ${err?.message || err}`, `Error: ${err?.message || err}`);
         this.#append(id, live, { type: signal.aborted ? 'stopped' : 'error', text });
       })
       .finally(() => {
@@ -293,9 +296,9 @@ export class Manager {
     const meta = this.#meta(id);
     const live = this.live.get(id);
     const index = live ? live.queue.findIndex((p) => p.request.requestId === requestId) : -1;
-    if (index < 0) throw new HttpError(409, 'Yêu cầu quyền này không còn chờ nữa.');
+    if (index < 0) throw new HttpError(409, t('Yêu cầu quyền này không còn chờ nữa.', 'This permission request is no longer pending.'));
     if (!['allow', 'allow_always', 'deny'].includes(decision)) {
-      throw new HttpError(400, `Quyết định không hợp lệ: ${decision}`);
+      throw new HttpError(400, t(`Quyết định không hợp lệ: ${decision}`, `Invalid decision: ${decision}`));
     }
     const [pending] = live.queue.splice(index, 1);
     if (!live.queue.length) meta.status = 'running';
@@ -330,7 +333,7 @@ export class Manager {
         live.waiters.add(done);
       });
     }
-    if (live.removed || !this.sessions.has(id)) throw new HttpError(404, 'Session đã bị xoá.');
+    if (live.removed || !this.sessions.has(id)) throw new HttpError(404, t('Session đã bị xoá.', 'This session was removed.'));
     // Trong lúc chờ, lịch sử có thể đã được nạp lại bởi một client khác.
     checkEpoch();
     return {
@@ -349,7 +352,7 @@ export class Manager {
 
   #meta(id) {
     const meta = this.sessions.get(id);
-    if (!meta) throw new HttpError(404, `Không có session ${id}.`);
+    if (!meta) throw new HttpError(404, t(`Không có session ${id}.`, `No session ${id}.`));
     return meta;
   }
 

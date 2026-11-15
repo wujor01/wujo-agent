@@ -369,3 +369,35 @@ test('git diff: thư mục viết theo tên ngắn 8.3 của Windows vẫn đư�
   // chặn thoát repo vẫn còn hiệu lực khi dùng tên ngắn
   await assert.rejects(gitDiff(short, '..\\web-old\\bi-mat.txt'), (e) => e.status === 400);
 });
+
+test('thông báo lỗi theo ngôn ngữ của app: Accept-Language en → tiếng Anh, còn lại tiếng Việt', async () => {
+  const get = async (lang) => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/sessions/khong-co`, {
+      headers: { Authorization: `Bearer ${TOKEN}`, ...(lang ? { 'Accept-Language': lang } : {}) },
+    });
+    return (await res.json()).error;
+  };
+  assert.equal(await get('en'), 'No session khong-co.');
+  assert.equal(await get('en-US,en;q=0.9,vi;q=0.8'), 'No session khong-co.');
+  assert.equal(await get('vi'), 'Không có session khong-co.');
+  assert.equal(await get(undefined), 'Không có session khong-co.');
+  // hai request khác ngôn ngữ chạy xen kẽ không lẫn sang nhau
+  const mixed = await Promise.all(['en', 'vi', 'en', 'vi', 'en'].map(get));
+  assert.deepEqual(mixed, ['No session khong-co.', 'Không có session khong-co.', 'No session khong-co.', 'Không có session khong-co.', 'No session khong-co.']);
+  // lỗi sinh ra sau một bước chờ bất đồng bộ (đọc body) vẫn đúng ngôn ngữ
+  const bad = await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+    method: 'POST', headers: { Authorization: `Bearer ${TOKEN}`, 'Accept-Language': 'en', 'Content-Type': 'application/json' }, body: '{hỏng',
+  });
+  assert.equal((await bad.json()).error, 'Invalid JSON.');
+});
+
+test('chế độ quyền: nhận auto, truyền cho runner; không nhận bypassPermissions', async () => {
+  const made = await call('POST', '/api/sessions', { cwd: work, mode: 'auto' });
+  assert.equal(made.body.session.mode, 'auto');
+  const id = made.body.session.id;
+  assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'plan' })).body.session.mode, 'plan');
+  assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'auto' })).body.session.mode, 'auto');
+  assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'bypassPermissions' })).status, 400);
+  assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'dontAsk' })).status, 400);
+  assert.equal((await call('GET', `/api/sessions/${id}`)).body.session.mode, 'auto');
+});

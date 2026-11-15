@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform, ScrollView, Text, View } from 'reac
 import { Server, ServerLink, connectLink, parseAddress } from '../api';
 import { Button, Card, Empty, Field, Header, KeyboardShift, Notice, useTheme } from '../ui';
 import { Scanner } from '../Scanner';
+import { tr } from '../i18n';
 
 export function confirm(title: string, message: string, onYes: () => void) {
   if (Platform.OS === 'web') {
@@ -10,7 +11,7 @@ export function confirm(title: string, message: string, onYes: () => void) {
     if ((globalThis as any).confirm(`${title}\n${message}`)) onYes();
     return;
   }
-  Alert.alert(title, message, [{ text: 'Huỷ', style: 'cancel' }, { text: 'Đồng ý', style: 'destructive', onPress: onYes }]);
+  Alert.alert(title, message, [{ text: tr('Huỷ', 'Cancel'), style: 'cancel' }, { text: tr('Đồng ý', 'OK'), style: 'destructive', onPress: onYes }]);
 }
 
 export function Servers({ servers, onChange, onOpen, incoming, onIncomingDone }: {
@@ -43,7 +44,7 @@ export function Servers({ servers, onChange, onOpen, incoming, onIncomingDone }:
       onOpen(server);
       return true;
     } catch (e: any) {
-      setError(e?.message || 'Không kết nối được.');
+      setError(e?.message || tr('Không kết nối được.', 'Could not connect.'));
       return false;
     }
   }
@@ -51,8 +52,8 @@ export function Servers({ servers, onChange, onOpen, incoming, onIncomingDone }:
   async function addManual() {
     setError('');
     const addr = parseAddress(address, Number(port) || 7433);
-    if (!addr) return setError('Địa chỉ chưa đúng. Ví dụ: 100.64.0.10 hoặc 192.168.1.10');
-    if (!token.trim()) return setError('Nhập token (chạy "wujoagent token" trên máy tính để xem), hoặc quét mã QR.');
+    if (!addr) return setError(tr('Địa chỉ chưa đúng. Ví dụ: 100.64.0.10 hoặc 192.168.1.10', 'Invalid address. Example: 100.64.0.10 or 192.168.1.10'));
+    if (!token.trim()) return setError(tr('Nhập token (chạy "wujoagent token" trên máy tính để xem), hoặc quét mã QR.', 'Enter the token (run "wujoagent token" on the computer to see it), or scan the QR code.'));
     setBusy(true);
     await addLink({ hosts: [addr.host], port: addr.port, token: token.trim() });
     setBusy(false);
@@ -75,10 +76,10 @@ export function Servers({ servers, onChange, onOpen, incoming, onIncomingDone }:
 
   return (
     <KeyboardShift>
-      <Header title="Máy chủ" right={!adding ? (
+      <Header title={tr('Máy chủ', 'Servers')} right={!adding ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
-          <Button small kind="plain" label="Quét QR" onPress={() => setScanning(true)} />
-          <Button small kind="plain" label="Thêm" onPress={() => setAdding(true)} />
+          <Button small kind="plain" label={tr('Quét QR', 'Scan QR')} onPress={() => setScanning(true)} />
+          <Button small kind="plain" label={tr('Thêm', 'Add')} onPress={() => setAdding(true)} />
         </View>
       ) : undefined} />
       <ScrollView contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
@@ -86,39 +87,40 @@ export function Servers({ servers, onChange, onOpen, incoming, onIncomingDone }:
           <Card>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <ActivityIndicator color={t.accent} />
-              <Text style={{ color: t.text, fontSize: 15 }}>Đang kết nối tới máy chủ trong mã QR…</Text>
+              <Text style={{ color: t.text, fontSize: 15 }}>{tr('Đang kết nối tới máy chủ trong mã QR…', 'Connecting to the server from the QR code…')}</Text>
             </View>
           </Card>
         ) : null}
         {!adding ? <Notice text={error} /> : null}
         {adding ? (
           <Card>
-            <Text style={{ color: t.text, fontSize: 16, fontWeight: '600', marginBottom: 12 }}>Thêm máy chủ</Text>
-            <Button label="Quét mã QR" onPress={() => setScanning(true)} />
+            <Text style={{ color: t.text, fontSize: 16, fontWeight: '600', marginBottom: 12 }}>{tr('Thêm máy chủ', 'Add server')}</Text>
+            <Button label={tr('Quét mã QR', 'Scan QR code')} onPress={() => setScanning(true)} />
             <Text style={{ color: t.sub, fontSize: 13, marginTop: 8, marginBottom: 14 }}>
-              Mã QR hiện trong terminal khi chạy "wujoagent serve" hoặc "wujoagent qr" trên máy tính. Hoặc nhập tay bên dưới.
+              {tr('Mã QR hiện trong terminal khi chạy "wujoagent serve" hoặc "wujoagent qr" trên máy tính. Hoặc nhập tay bên dưới.',
+                'The QR code appears in the terminal when you run "wujoagent serve" or "wujoagent qr" on the computer. Or enter the details below.')}
             </Text>
-            <Field label="Địa chỉ IP (mạng nội bộ hoặc Tailscale)" value={address} onChangeText={setAddress}
+            <Field label={tr('Địa chỉ IP (mạng nội bộ hoặc Tailscale)', 'IP address (local network or Tailscale)')} value={address} onChangeText={setAddress}
               placeholder="100.64.0.10" keyboardType="url" />
-            <Field label="Cổng" value={port} onChangeText={setPort} keyboardType="number-pad" />
-            <Field label="Token" value={token} onChangeText={setToken} placeholder="12 ký tự" secureTextEntry />
+            <Field label={tr('Cổng', 'Port')} value={port} onChangeText={setPort} keyboardType="number-pad" />
+            <Field label="Token" value={token} onChangeText={setToken} placeholder={tr('12 ký tự', '12 characters')} secureTextEntry />
             <Notice text={error} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}><Button kind="plain" label="Kết nối" onPress={addManual} busy={busy} /></View>
-              {servers.length > 0 ? <Button kind="plain" label="Huỷ" onPress={() => { setAdding(false); setError(''); }} /> : null}
+              <View style={{ flex: 1 }}><Button kind="plain" label={tr('Kết nối', 'Connect')} onPress={addManual} busy={busy} /></View>
+              {servers.length > 0 ? <Button kind="plain" label={tr('Huỷ', 'Cancel')} onPress={() => { setAdding(false); setError(''); }} /> : null}
             </View>
           </Card>
         ) : null}
         {servers.map((sv) => (
           <Card key={sv.id} onPress={() => onOpen(sv)}
-            onLongPress={() => confirm('Xoá máy chủ?', `${sv.name} (${sv.host})`, () => onChange(servers.filter((x) => x.id !== sv.id)))}>
+            onLongPress={() => confirm(tr('Xoá máy chủ?', 'Remove server?'), `${sv.name} (${sv.host})`, () => onChange(servers.filter((x) => x.id !== sv.id)))}>
             <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>{sv.name}</Text>
             <Text style={{ color: t.sub, marginTop: 2 }}>{sv.host}:{sv.port}</Text>
           </Card>
         ))}
-        {!adding && servers.length === 0 ? <Empty text="Chưa có máy chủ nào. Bấm Quét QR hoặc Thêm." /> : null}
+        {!adding && servers.length === 0 ? <Empty text={tr('Chưa có máy chủ nào. Bấm Quét QR hoặc Thêm.', 'No servers yet. Tap Scan QR or Add.')} /> : null}
         {servers.length > 0 ? (
-          <Text style={{ color: t.sub, fontSize: 12, textAlign: 'center', marginTop: 8 }}>Giữ lâu vào một máy chủ để xoá.</Text>
+          <Text style={{ color: t.sub, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{tr('Giữ lâu vào một máy chủ để xoá.', 'Long-press a server to remove it.')}</Text>
         ) : null}
       </ScrollView>
       {scanning ? (
