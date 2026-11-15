@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, AppState, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet,
+  ActivityIndicator, AppState, BackHandler, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
 import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, Server, Session, matchCommands, timeUntil } from '../api';
@@ -231,16 +231,27 @@ function PermissionPopup({ pending, onAnswer, busy, onHide }: {
   );
 }
 
-/** Bảng trượt từ dưới lên cho chọn model và xem MCP. */
+/**
+ * Bảng nổi từ đáy màn chat: cài đặt, chọn model, danh sách file đã sửa.
+ *
+ * Cố ý KHÔNG dùng Modal của hệ điều hành mà là một lớp phủ nằm trong chính màn chat. iOS chỉ cho hiện một
+ * Modal tại một thời điểm: mở Modal thứ hai (xem diff của một file, popup xin quyền, hay chuyển từ bảng
+ * cài đặt sang bảng chọn model) trong lúc Modal đầu còn đó thì cái thứ hai không hiện ra nhưng vẫn chặn
+ * mọi thao tác, và app đơ. Lớp phủ thường thì không vướng giới hạn đó.
+ */
 function Sheet({ title, onClose, children, action }: {
   title: string; onClose: () => void; children: React.ReactNode; action?: React.ReactNode;
 }) {
   const t = useTheme();
-  const insets = useSafeAreaInsets(); // lấy từ app, vì Modal không có lề an toàn riêng
+  // Nút Back của Android đóng bảng trước, chứ không rời màn chat.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { onClose(); return true; });
+    return () => sub.remove();
+  }, [onClose]);
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <View style={s.overlay} accessibilityViewIsModal>
       <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={tr('Đóng', 'Close')} />
-      <View style={[s.sheet, { backgroundColor: t.bg, borderColor: t.border, paddingBottom: 16 + insets.bottom }]}>
+      <View style={[s.sheet, { backgroundColor: t.bg, borderColor: t.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 }}>
           <Text style={{ color: t.text, fontSize: 17, fontWeight: '600', flex: 1 }}>{title}</Text>
           {action}
@@ -248,7 +259,7 @@ function Sheet({ title, onClose, children, action }: {
         </View>
         <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
       </View>
-    </Modal>
+    </View>
   );
 }
 
@@ -396,6 +407,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   }
 
   // Popup xin quyền: mỗi yêu cầu mới lại bật lên, kể cả khi yêu cầu trước đã bị thu lại.
+  const closeSheet = useCallback(() => setSheet(null), []);
   const [permHidden, setPermHidden] = useState(false);
   const pendingId = pending?.requestId;
   useEffect(() => { setPermHidden(false); if (pendingId) Keyboard.dismiss(); }, [pendingId]);
@@ -424,7 +436,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
     try { setSession((await api.patch(session.id, { model: value === 'default' ? null : value })).session); } catch (e: any) { setError(e.message); }
   }
 
-  const suggestions = caps ? matchCommands(caps.commands, text) : [];
+  const suggestions = caps ? matchCommands(caps.commands, text, 5) : []; // 5 dòng: vừa khoảng trống phía trên bàn phím
   const currentModel = session.model || 'default';
   const modelName = caps?.models.find((m) => m.value === currentModel)?.name || (session.model || tr('Mặc định', 'Default'));
 
@@ -505,7 +517,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
       ) : null}
       {error ? <Text style={[s.banner, { color: t.danger, borderColor: t.border }]}>{error}</Text> : null}
       {suggestions.length > 0 ? (
-        <ScrollView style={[s.suggest, { borderTopColor: t.border, backgroundColor: t.card }]} keyboardShouldPersistTaps="handled">
+        <View style={[s.suggest, { borderTopColor: t.border, backgroundColor: t.card }]}>
           {suggestions.map((c) => (
             <Pressable key={c.name} onPress={() => setText(`/${c.name} `)} accessibilityRole="button"
               accessibilityLabel={tr(`Lệnh ${c.name}`, `Command ${c.name}`)} style={({ pressed }) => [s.suggestRow, { opacity: pressed ? 0.6 : 1 }]}>
@@ -516,7 +528,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
               {c.description ? <Text numberOfLines={1} style={{ color: t.sub, fontSize: 12 }}>{c.description}</Text> : null}
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
       ) : null}
       <View style={[s.composer, { borderTopColor: t.border, backgroundColor: t.bg }]}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 4, marginBottom: 8, opacity: busy ? 0.5 : 1 }}>
@@ -545,7 +557,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         </View>
       </View>
       {sheet === 'model' ? (
-        <Sheet title={tr('Chọn model', 'Choose model')} onClose={() => setSheet(null)}>
+        <Sheet title={tr('Chọn model', 'Choose model')} onClose={closeSheet}>
           {capsLoading && !caps ? <ActivityIndicator color={t.accent} style={{ margin: 20 }} /> : null}
           {capsError && !caps ? (
             <View>
@@ -568,7 +580,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         </Sheet>
       ) : null}
       {sheet === 'changes' ? (
-        <Sheet title={tr('File session này đã sửa', 'Files changed by this session')} onClose={() => setSheet(null)}>
+        <Sheet title={tr('File session này đã sửa', 'Files changed by this session')} onClose={closeSheet}>
           {changes.map((c) => (
             <Pressable key={c.path} onPress={() => setViewing(c)} accessibilityRole="button"
               accessibilityLabel={tr(`Xem thay đổi của ${c.name}`, `View changes in ${c.name}`)}
@@ -593,7 +605,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
           onClose={() => setViewing(null)} />
       ) : null}
       {sheet === 'settings' ? (
-        <Sheet title={tr('Cài đặt session', 'Session settings')} onClose={() => setSheet(null)}
+        <Sheet title={tr('Cài đặt session', 'Session settings')} onClose={closeSheet}
           action={<Button small kind="plain" label={tr('Tải lại', 'Reload')} busy={capsLoading} onPress={() => loadCaps(true)} />}>
           {capsError ? <Text style={{ color: t.danger, marginBottom: 6 }}>{capsError}</Text> : null}
 
@@ -698,10 +710,11 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
 }
 
 const s = StyleSheet.create({
+  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, elevation: 50 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { maxHeight: '75%', borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 28 },
-  suggest: { maxHeight: 220, flexGrow: 0, borderTopWidth: StyleSheet.hairlineWidth },
-  suggestRow: { paddingHorizontal: 14, paddingVertical: 8 },
+  suggest: { flexGrow: 0, flexShrink: 0, borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 4 },
+  suggestRow: { paddingHorizontal: 14, paddingVertical: 7 },
   row: { paddingHorizontal: 16, paddingVertical: 6 },
   user: { alignSelf: 'flex-end', maxWidth: '85%', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, marginHorizontal: 16, marginVertical: 6 },
   tool: { marginHorizontal: 16, marginVertical: 3, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },

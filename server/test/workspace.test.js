@@ -154,3 +154,48 @@ test('transcriptToEvents: bỏ chữ hệ thống chèn và lượt subagent, gi
   assert.equal(events[0].text, 'Chào bạn');
   assert.equal(events[3].text, 'nội dung');
 });
+
+test('đang mở session trên điện thoại mà chat tiếp trên máy tính: điện thoại nhận bản mới, không phải ra vào lại', async () => {
+  const ID3 = '33333333-3333-4333-8333-333333333333';
+  fake.sessions.push({ claudeSessionId: ID3, title: 'Làm trên hai máy', updatedAt: 1000, cwd: wsA, gitBranch: 'main' });
+  fake.transcript[ID3] = [{ type: 'user', text: 'câu đầu' }];
+  let written = 1000;
+  fake.mtime = async (id) => (id === ID3 ? written : null);
+  manager.watchMs = 40;
+
+  const s = await manager.open({ cwd: wsA, claudeSessionId: ID3 });
+  const first = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.equal(first.events.length, 1);
+
+  // điện thoại treo long-poll ở cuối lịch sử
+  const t0 = Date.now();
+  const waiting = manager.poll(s.id, { after: 1, v: first.v, epoch: first.epoch, waitMs: 5000 });
+  await new Promise((r) => setTimeout(r, 150));
+
+  // người dùng gõ câu mới trên máy tính (VS Code): transcript được ghi thêm
+  fake.transcript[ID3] = [
+    { type: 'user', text: 'câu đầu' },
+    { type: 'user', text: 'hỏi từ máy tính' },
+    { type: 'assistant', text: 'trả lời trên máy tính' },
+  ];
+  written = Date.now() + 60000;
+  fake.sessions.find((x) => x.claudeSessionId === ID3).updatedAt = written;
+
+  const out = await waiting;
+  assert.ok(Date.now() - t0 < 2000, `điện thoại phải thấy trong vòng 2 giây, mất ${Date.now() - t0} ms`);
+  assert.equal(out.reset, true);
+  assert.deepEqual(out.events.map((e) => e.text), ['câu đầu', 'hỏi từ máy tính', 'trả lời trên máy tính']);
+
+  // không có gì đổi thì long-poll không bị đánh thức vô cớ, và không đọc lại transcript
+  written = 1000; // transcript không được ghi thêm kể từ lần nạp vừa rồi
+  let reads = 0;
+  const realEvents = fake.events;
+  fake.events = async (...a) => { reads++; return realEvents.apply(fake, a); };
+  const quiet = await manager.poll(s.id, { after: 3, v: out.v, epoch: out.epoch, waitMs: 300 });
+  assert.equal(quiet.events.length, 0);
+  assert.equal(quiet.reset, false);
+  assert.equal(reads, 0);
+  fake.events = realEvents;
+  delete fake.mtime;
+  manager.watchMs = 2000;
+});

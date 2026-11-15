@@ -2,6 +2,19 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.2] - 2026-11-15
+
+### Changed
+
+- With a session open on the phone, continuing it on the computer (VS Code, terminal) now shows up on the phone after a few seconds, without leaving and reopening. Only completed messages appear, not text still being typed.
+- The permission card is now a popup in the middle of the screen instead of a row in the chat; it can be minimised to read the conversation before deciding.
+
+### Fixed
+
+- The app froze on iPhone after opening a file from the "files changed by this session" list.
+- The slash-command suggestions were covered by the "Mode" line.
+- The Android build failed after Vietnamese permission texts were added for iOS.
+
 ## [1.0.1] - 2026-11-15
 
 ### Changed

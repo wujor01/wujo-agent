@@ -29,6 +29,9 @@ export class Manager {
     // Gọi khi một lượt kết thúc hoặc Claude xin quyền mà không có app nào đang mở session đó
     // (kind: 'done' | 'ask' | 'error'). serve.js nối cái này vào thông báo đẩy.
     this.notify = notify || (() => {});
+    // Trong lúc có app đang mở một session rảnh, cứ ngần này mili giây lại xem session đó có được
+    // chat tiếp ở nơi khác (VS Code, terminal) không, để app thấy ngay mà không phải ra vào lại.
+    this.watchMs = 2000;
     // Nguồn đọc session Claude Code có sẵn trên máy; không có thì chỉ thấy session của hệ thống này.
     this.history = history || { list: async () => [], info: async () => null, events: async () => [] };
     this.sessions = new Map(); // id -> meta (lưu đĩa)
@@ -336,8 +339,10 @@ export class Manager {
     if (!fresh() && waitMs > 0) {
       await new Promise((resolve) => {
         const timer = setTimeout(done, waitMs);
+        const watch = setInterval(() => { this.#checkExternal(meta, live); }, this.watchMs);
         function done() {
           clearTimeout(timer);
+          clearInterval(watch);
           live.waiters.delete(done);
           signal?.removeEventListener('abort', done);
           resolve();
@@ -394,6 +399,28 @@ export class Manager {
       this.live.set(id, live);
     }
     return live;
+  }
+
+  /**
+   * Session rảnh mà transcript của Claude vừa được ghi thêm: có người đang chat tiếp ở nơi khác.
+   * Nạp lại lịch sử; #resync đánh thức các app đang chờ và chúng nhận bản mới (reset).
+   */
+  async #checkExternal(meta, live) {
+    if (live.checking || meta.status !== 'idle' || !meta.claudeSessionId || !this.sessions.has(meta.id)) return;
+    live.checking = true;
+    try {
+      const written = this.history.mtime ? await this.history.mtime(meta.claudeSessionId, meta.cwd) : null;
+      if (written === null) {
+        // Không stat được file (nguồn lịch sử không hỗ trợ): hỏi theo cách đầy đủ, nhưng thưa hơn.
+        if (Date.now() - (live.fullCheckAt || 0) < 3 * this.watchMs) return;
+        live.fullCheckAt = Date.now();
+      } else if (written <= (meta.syncedAt || 0) + 2000) {
+        return;
+      }
+      await this.#resync(meta, false);
+    } finally {
+      live.checking = false;
+    }
   }
 
   /** Dựng lại sự kiện từ transcript của Claude nếu nó mới hơn bản mình đang giữ. */

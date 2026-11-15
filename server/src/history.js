@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { listSessions, getSessionMessages, getSessionInfo } from '@anthropic-ai/claude-agent-sdk';
 
@@ -40,6 +42,24 @@ export const claudeHistory = {
   async info(sessionId, dir) {
     const info = await getSessionInfo(sessionId, dir ? { dir } : undefined);
     return info ? shape(info) : null;
+  },
+
+  /**
+   * Thời điểm transcript của session được ghi lần cuối (ms), hoặc null nếu không tìm thấy file.
+   * Chỉ là một lần stat, đủ rẻ để hỏi vài giây một lần trong lúc có app đang mở session.
+   * Claude Code lưu transcript ở <thư mục cấu hình>/projects/<cwd đã đổi ký tự lạ thành "-">/<id>.jsonl.
+   */
+  async mtime(sessionId, cwd) {
+    const projects = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+    const want = path.resolve(String(cwd || '')).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    try {
+      // Tên thư mục có lúc giữ nguyên hoa thường của ổ đĩa, có lúc không, nên so không phân biệt hoa thường.
+      const dir = (await fs.promises.readdir(projects)).find((d) => d.toLowerCase() === want);
+      if (!dir) return null;
+      return Math.round((await fs.promises.stat(path.join(projects, dir, `${sessionId}.jsonl`))).mtimeMs);
+    } catch {
+      return null;
+    }
   },
 
   /** Lịch sử một session, đổi sang dạng sự kiện của app (chưa có seq). */

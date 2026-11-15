@@ -2,6 +2,19 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.2] - 2026-11-15
+
+### Thay đổi
+
+- Đang mở một session trên điện thoại mà chat tiếp trên máy tính (VS Code, terminal): điện thoại tự hiện nội dung mới sau vài giây, không phải ra vào lại. Chỉ thấy các tin đã hoàn tất, không thấy chữ đang gõ dở.
+- Thẻ xin quyền hiện thành popup giữa màn hình thay vì nằm trong dòng chat; thu lại được để đọc cuộc trò chuyện trước khi quyết định.
+
+### Sửa lỗi
+
+- App đơ khi mở một file trong danh sách "file session đã sửa" trên iPhone.
+- Danh sách gợi ý lệnh khi gõ `/` bị dòng "Chế độ" che mất.
+- Bản Android không build được sau khi thêm lời xin quyền tiếng Việt cho iOS.
+
 ## [1.0.1] - 2026-11-15
 
 ### Thay đổi
