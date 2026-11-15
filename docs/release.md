@@ -141,10 +141,10 @@ Mọi dòng dưới đây đã được đếm ký tự cho vừa giới hạn.
 | Trường | Tiếng Việt | English |
 |---|---|---|
 | Tên (≤30) | WujoAgent | WujoAgent |
-| Phụ đề (≤30) | Điều khiển Claude Code từ xa | Remote for Claude Code |
+| Phụ đề (≤30) | Điều khiển agent của bạn từ xa | Remote Your Agent |
 | Văn bản quảng bá (≤170) | Chat với Claude Code trên máy tính, duyệt từng thao tác và xem thay đổi git ngay trên điện thoại. Kết nối thẳng qua mạng nội bộ hoặc Tailscale. | Chat with Claude Code on your computer, approve each action and review git changes from your phone. Connects directly over your LAN or Tailscale. |
 | Từ khoá (≤100) | claude code,lập trình,remote,terminal,git,ai,agent,tailscale,code,dev | claude code,coding,remote,terminal,git,ai,agent,tailscale,developer,ssh |
-| Danh mục | Developer Tools | Developer Tools |
+| Danh mục | Developer Tools (phụ: Productivity) | Developer Tools (secondary: Productivity) |
 | URL hỗ trợ | https://agent.wujo.dev | https://agent.wujo.dev/en/ |
 | URL quyền riêng tư | https://agent.wujo.dev/privacy | https://agent.wujo.dev/en/privacy |
 
