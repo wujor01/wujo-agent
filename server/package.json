@@ -2,7 +2,7 @@
   "name": "wujoagent",
   "version": "1.0.0",
   "scripts": {
-    "start": "node bin/cs.js serve",
+    "start": "node bin/wujoagent.js serve",
     "test": "node --test --test-timeout=60000"
   },
   "keywords": [],
@@ -15,8 +15,8 @@
   },
   "type": "module",
   "bin": {
-    "wujoagent": "bin/cs.js",
-    "cs": "bin/cs.js"
+    "wujoagent": "bin/wujoagent.js",
+    "wa": "bin/wujoagent.js"
   },
   "engines": {
     "node": ">=20"

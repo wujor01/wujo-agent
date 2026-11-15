@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// CLI của WujoAgent (lệnh `wujoagent`, viết tắt `cs`). Dùng tại chỗ hoặc qua SSH: ssh may-chu cs list
+// CLI của WujoAgent (lệnh `wujoagent`, viết tắt `wa`). Dùng tại chỗ hoặc qua SSH: ssh may-chu wa list
 import readline from 'node:readline/promises';
 import { loadConfig } from '../src/config.js';
 
 const [cmd, ...args] = process.argv.slice(2);
 
-const HELP = `wujoagent (viết tắt: cs) — điều khiển Claude Code từ điện thoại
+const HELP = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ điện thoại
 
-  cs serve [--port N] [--host IP] [--no-qr]   chạy server (mặc định 0.0.0.0:7433)
-  cs token                          in token để nhập vào app
-  cs qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
-  cs list                           liệt kê session
-  cs new <thư-mục> [tiêu đề]        tạo session
-  cs send <id> <tin nhắn...>        gửi tin và xem câu trả lời
-  cs show <id>                      xem lịch sử
-  cs git <id> [fetch|pull|push]     xem repo hoặc chạy thao tác git
-  cs rm <id>                        xoá session
+  wa serve [--port N] [--host IP] [--no-qr]   chạy server (mặc định 0.0.0.0:7433)
+  wa token                          in token để nhập vào app
+  wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
+  wa list                           liệt kê session
+  wa new <thư-mục> [tiêu đề]        tạo session
+  wa send <id> <tin nhắn...>        gửi tin và xem câu trả lời
+  wa show <id>                      xem lịch sử
+  wa git <id> [fetch|pull|push]     xem repo hoặc chạy thao tác git
+  wa rm <id>                        xoá session
 
 <id> có thể viết tắt bằng vài ký tự đầu.`;
 
@@ -34,7 +34,7 @@ async function api(method, pathname, body) {
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new Error(`Không nối được server ở cổng ${cfg.port}. Chạy "cs serve" trước.`);
+    throw new Error(`Không nối được server ở cổng ${cfg.port}. Chạy "wa serve" trước.`);
   }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -42,7 +42,7 @@ async function api(method, pathname, body) {
 }
 
 async function resolveId(prefix) {
-  if (!prefix) throw new Error('Thiếu id session. Xem: cs list');
+  if (!prefix) throw new Error('Thiếu id session. Xem: wa list');
   const { sessions } = await api('GET', '/sessions');
   const hits = sessions.filter((s) => s.id.startsWith(prefix));
   if (hits.length === 1) return hits[0].id;
@@ -97,14 +97,14 @@ async function main() {
     }
     case 'list': {
       const { sessions } = await api('GET', '/sessions');
-      if (!sessions.length) return console.log('Chưa có session nào. Tạo: cs new <thư-mục>');
+      if (!sessions.length) return console.log('Chưa có session nào. Tạo: wa new <thư-mục>');
       for (const s of sessions) {
         console.log(`${s.id}  ${s.status.padEnd(8)} ${s.mode.padEnd(12)} ${(s.title || '(chưa đặt tên)').padEnd(42)} ${s.cwd}`);
       }
       return;
     }
     case 'new': {
-      if (!args[0]) throw new Error('Dùng: cs new <thư-mục> [tiêu đề]');
+      if (!args[0]) throw new Error('Dùng: wa new <thư-mục> [tiêu đề]');
       const { session } = await api('POST', '/sessions', { cwd: args[0], title: args.slice(1).join(' ') });
       console.log(session.id);
       return;

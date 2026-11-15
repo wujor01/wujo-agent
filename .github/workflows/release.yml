@@ -1,0 +1,70 @@
+# Phát hành server: đẩy tag vX.Y.Z thì tạo GitHub Release kèm file wujoagent.tgz. Trang chủ hướng dẫn cài bằng
+#   npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz
+# nên bản phát hành mới nhất chính là bản người dùng cài. Link này chỉ dùng được khi repo công khai.
+# Không cần secret nào ngoài GITHUB_TOKEN có sẵn.
+#
+# Cách ra bản mới:
+#   1. thêm mục "## [X.Y.Z] - ngày" vào CHANGELOG.md và CHANGELOG.en.md
+#   2. đổi "version" trong server/package.json (và app/app.json nếu app cũng đổi)
+#   3. git tag vX.Y.Z && git push origin vX.Y.Z
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tag phải khớp phiên bản trong server/package.json
+        run: |
+          version=$(node -p "require('./server/package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME không khớp server/package.json ($version)." >&2
+            exit 1
+          fi
+
+      - name: Test server
+        working-directory: server
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
+      - name: Build bản web của app
+        working-directory: app
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck
+          npm run build:web
+
+      - name: Đóng gói server
+        run: node scripts/pack-server.mjs
+
+      - name: Cài thử gói vừa đóng
+        run: |
+          mkdir -p "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try"
+          npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE/dist/wujoagent.tgz" --no-audit --no-fund
+          ./node_modules/.bin/wujoagent help | head -3
+          ./node_modules/.bin/wa help | head -1
+
+      - name: Ghi chú phát hành từ CHANGELOG
+        run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
+
+      - name: Tạo GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/wujoagent.tgz \
+            --title "WujoAgent ${GITHUB_REF_NAME#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag

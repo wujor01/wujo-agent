@@ -4,7 +4,9 @@ app/dist/
 app/.expo/
 .env
 
-landing/download/
+dist/
+landing/changelog.html
+landing/en/changelog.html
 server/*.tgz
 .wrangler/
 

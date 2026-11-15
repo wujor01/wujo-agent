@@ -25,7 +25,7 @@ export function startServer({ port, host, qr } = {}) {
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`Cổng ${listenPort} đang bị dùng. Có thể server đã chạy rồi, hoặc đổi cổng: cs serve --port <số>`);
+      console.error(`Cổng ${listenPort} đang bị dùng. Có thể server đã chạy rồi, hoặc đổi cổng: wa serve --port <số>`);
     } else if (err.code === 'EADDRNOTAVAIL') {
       console.error(`Máy này không có địa chỉ ${listenHost}. Kiểm tra lại --host.`);
     } else {

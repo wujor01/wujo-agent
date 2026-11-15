@@ -10,14 +10,16 @@
     "directory": "../../landing",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    // Chỉ các trang HTML và link tải app đi qua Worker. /download/wujoagent.tgz (gói server) là file tĩnh.
-    "run_worker_first": ["/", "/privacy", "/en", "/en/", "/en/privacy", "/download/android", "/download/ios"]
+    // Chỉ các trang HTML và link tải app đi qua Worker.
+    "run_worker_first": [
+      "/", "/privacy", "/changelog", "/en", "/en/", "/en/privacy", "/en/changelog", "/download/android", "/download/ios"
+    ]
   },
   "vars": {
     // Bản APK hiện hành (EAS, profile "beta"). Sau mỗi lần build: dán link https://expo.dev/artifacts/eas/....apk
     // vào đây rồi deploy trong vòng 14 ngày, khi EAS còn giữ file; sync-apk.mjs chép nó sang bucket DOWNLOADS
     // và /download/android phục vụ từ đó về sau. Để trống: nút tải Android báo "chưa phát hành".
-    "ANDROID_APK_URL": "",
+    "ANDROID_APK_URL": "https://expo.dev/artifacts/eas/tTovgoucFw-iYlkUziwWdr7pps31Z7wkQ2UUJGNezEA.apk",
     // Link tải cho iPhone: link TestFlight công khai (https://testflight.apple.com/join/...) hoặc trang
     // App Store (https://apps.apple.com/app/id...). Để trống: nút tải iPhone báo "chưa phát hành".
     "IOS_URL": ""

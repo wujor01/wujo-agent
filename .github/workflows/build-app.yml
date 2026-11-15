@@ -1,0 +1,56 @@
+# Build app trên EAS, chạy tay trong tab Actions (Run workflow).
+#   android + beta        → file APK cài trực tiếp. Xong thì dán link .apk vào ANDROID_APK_URL trong
+#                           deploy/cloudflare/wrangler.landing.jsonc và đẩy lên main để landing cập nhật.
+#   ios + production      → bản cho TestFlight / App Store. Lần đầu phải build ở máy mình để đăng nhập
+#                           Apple và cho EAS tạo chứng chỉ (docs/release.md); các lần sau chạy ở đây được.
+# Secret cần có: EXPO_TOKEN (expo.dev → Account settings → Access tokens).
+name: Build app (EAS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Nền tảng
+        type: choice
+        options: [android, ios]
+        default: android
+      profile:
+        description: Profile trong app/eas.json
+        type: choice
+        options: [beta, production]
+        default: beta
+      submit:
+        description: Gửi lên App Store Connect sau khi build (chỉ ios + production)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run typecheck
+        working-directory: app
+      - name: Build
+        working-directory: app
+        run: >
+          eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }}
+          --non-interactive --wait
+          ${{ (inputs.submit && inputs.platform == 'ios' && inputs.profile == 'production') && '--auto-submit' || '' }}
+      - name: Link bản build
+        working-directory: app
+        run: eas build:list --platform ${{ inputs.platform }} --limit 1 --non-interactive --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s)[0];console.log(b.status, (b.artifacts&&(b.artifacts.applicationArchiveUrl||b.artifacts.buildUrl))||'')})" | tee -a "$GITHUB_STEP_SUMMARY"

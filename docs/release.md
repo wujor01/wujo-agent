@@ -9,11 +9,12 @@ EAS dưới tài khoản Expo `wujor01`, mã định danh `dev.wujo.wujoagent`, 
 | Tên, icon, màn chờ, bundle ID, scheme `wujoagent://` | Xong (`app/app.json`), `npx expo-doctor` 20/20 |
 | `app/eas.json`: profile `beta` (APK) và `production` | Xong |
 | Landing vi/en, chính sách quyền riêng tư, 404 | Xong (`landing/`), đã chạy thử tại chỗ bằng `wrangler dev` |
-| Worker, cấu hình Cloudflare, chép APK sang R2, đóng gói server | Xong (`deploy/cloudflare/`), `wrangler deploy --dry-run` qua |
+| Worker, cấu hình Cloudflare, chép APK sang R2 | Xong (`deploy/cloudflare/`) |
+| CI/CD trên GitHub Actions | Xong (`.github/workflows/`); cần thêm secret, xem mục 4b |
 | Dự án EAS `@wujor01/wujoagent` | Xong (`extra.eas.projectId` trong `app/app.json`) |
-| Build APK | Đã gửi bản đầu lên EAS (profile `beta`) |
+| Build APK | Xong bản 1.0.0 (versionCode 1), đã chép sang R2 |
 | Build iOS, gửi App Store | **Chưa làm**: có bước đăng nhập Apple |
-| Deploy landing lên `agent.wujo.dev` | Xong lần đầu ngày 15/11/2026; link tải iOS và Android còn trống |
+| Deploy landing lên `agent.wujo.dev` | Xong; nút tải Android đã có APK, nút iPhone còn báo chưa phát hành |
 | Ảnh chụp màn hình cho store | **Chưa có** |
 
 ## Việc chỉ bạn làm được
@@ -33,7 +34,7 @@ cd app
 npx eas-cli build -p android --profile beta
 ```
 
-Xong, EAS cho một link `https://expo.dev/artifacts/eas/....apk`. Dán link đó vào `ANDROID_APK_URL` trong `deploy/cloudflare/wrangler.landing.jsonc` rồi deploy landing **trong vòng 14 ngày** (EAS xoá file sau đó). Khi deploy, `sync-apk.mjs` chép file sang bucket R2 `wujoagent-downloads`, và `https://agent.wujo.dev/download/android` phục vụ từ đó về sau.
+Hoặc chạy workflow **Build app (EAS)** trong tab Actions. Xong, EAS cho một link `https://expo.dev/artifacts/eas/....apk`. Dán link đó vào `ANDROID_APK_URL` trong `deploy/cloudflare/wrangler.landing.jsonc` rồi đẩy lên `main` **trong vòng 14 ngày** (EAS xoá file sau đó). Khi deploy, `sync-apk.mjs` chép file sang bucket R2 `wujoagent-downloads`, và `https://agent.wujo.dev/download/android` phục vụ từ đó về sau.
 
 Khoá ký Android do EAS tạo và giữ. Đừng tạo lại khoá: bản cập nhật ký bằng khoá khác sẽ không cài đè được.
 
@@ -65,10 +66,9 @@ Bản build lên TestFlight trước. Muốn có link TestFlight công khai thì
 
 ## 4. Deploy landing
 
-```bash
-cd app
-npm run build:web
-```
+Tự động: mỗi lần `main` thay đổi ở `landing/`, `deploy/cloudflare/` hoặc hai file changelog, workflow **Deploy landing** chạy và đưa trang lên `agent.wujo.dev`. Cũng bấm chạy tay được trong tab Actions.
+
+Từ máy mình (đã `npx wrangler login`):
 
 ```bash
 cd deploy/cloudflare
@@ -76,9 +76,7 @@ npm ci
 npm run deploy
 ```
 
-`npm run deploy` làm bốn việc: đóng gói server thành `landing/download/wujoagent.tgz`, tạo bucket R2 nếu chưa có, chép APK (nếu đã điền link), rồi `wrangler deploy`. Wrangler tự tạo bản ghi DNS và chứng chỉ cho `agent.wujo.dev`.
-
-**Lưu ý:** bước này đưa mã nguồn server lên mạng dưới dạng file tải công khai, vì trang chủ hướng dẫn cài bằng `npm install -g https://agent.wujo.dev/download/wujoagent.tgz`. Nếu bạn muốn phát hành server qua npm thay vì tự lưu trữ, đổi lệnh trong `landing/index.html` và `landing/en/index.html`, rồi bỏ bước `pack` khỏi script `deploy`.
+`npm run deploy` làm bốn việc: dựng trang nhật ký thay đổi từ `CHANGELOG.md` và `CHANGELOG.en.md`, tạo bucket R2 nếu chưa có, chép APK (nếu đã điền link), rồi `wrangler deploy`. Wrangler tự tạo bản ghi DNS và chứng chỉ cho `agent.wujo.dev`.
 
 Thử tại chỗ trước khi deploy:
 
@@ -86,7 +84,48 @@ Thử tại chỗ trước khi deploy:
 npm run dev
 ```
 
-Deploy qua GitLab CI: đẩy repo lên GitLab, đặt biến `CLOUDFLARE_API_TOKEN` và `CLOUDFLARE_ACCOUNT_ID`, rồi push lên `master` với chữ "deploy" trong commit message. Job `deploy-landing` nằm trong `.gitlab-ci.yml`.
+## 4a. Phát hành server
+
+Trang chủ hướng dẫn cài server bằng file đính kèm bản phát hành mới nhất trên GitHub:
+
+```
+npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz
+```
+
+**Link này chỉ tải được khi repo ở chế độ công khai và đã có ít nhất một bản phát hành.**
+
+Ra bản mới:
+
+1. Thêm mục `## [X.Y.Z] - ngày` vào `CHANGELOG.md` và `CHANGELOG.en.md`.
+2. Đổi `version` trong `server/package.json`.
+3. Đẩy tag:
+
+```bash
+git tag vX.Y.Z
+```
+
+```bash
+git push origin vX.Y.Z
+```
+
+Workflow **Release** chạy test, build bản web, đóng gói `wujoagent.tgz`, cài thử, rồi tạo GitHub Release với ghi chú lấy từ changelog. Tag không khớp `server/package.json`, hoặc changelog thiếu mục cho phiên bản đó, thì workflow dừng.
+
+## 4b. CI/CD trên GitHub Actions
+
+| Workflow | Khi nào chạy | Làm gì | Secret |
+|---|---|---|---|
+| `ci.yml` | mỗi lần đẩy lên `main`, mỗi pull request | test server trên Linux và Windows, typecheck app, `expo-doctor`, build bản web, đóng gói thử, dựng thử landing | không |
+| `deploy-landing.yml` | `main` đổi ở landing, deploy, changelog; hoặc chạy tay | deploy `agent.wujo.dev`, rồi kiểm tra ba trang trả 200 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` |
+| `release.yml` | đẩy tag `vX.Y.Z` | tạo GitHub Release kèm `wujoagent.tgz` | không |
+| `build-app.yml` | chạy tay | build APK hoặc iOS trên EAS, tuỳ chọn gửi App Store | `EXPO_TOKEN` |
+
+Thêm secret tại Settings → Secrets and variables → Actions:
+
+- `CLOUDFLARE_API_TOKEN`: tạo ở dash.cloudflare.com → My Profile → API Tokens, mẫu "Edit Cloudflare Workers", thêm quyền Workers R2 Storage: Edit; giới hạn vào tài khoản và zone `wujo.dev`.
+- `CLOUDFLARE_ACCOUNT_ID`: ở trang tổng quan Workers trong Cloudflare.
+- `EXPO_TOKEN`: expo.dev → Account settings → Access tokens.
+
+Chưa có secret thì `ci.yml` và `release.yml` vẫn chạy được; hai workflow còn lại sẽ báo lỗi xác thực.
 
 ## 5. Nội dung store
 

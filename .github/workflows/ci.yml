@@ -1,0 +1,71 @@
+# Kiểm tra mỗi lần đẩy lên main và mỗi pull request: test server (Linux và Windows), typecheck app,
+# kiểm tra cấu hình Expo, dựng thử landing. Không cần secret nào.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  server:
+    name: Server (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: server
+      - run: npm test
+        working-directory: server
+
+  app:
+    name: App (typecheck, cấu hình Expo, bản web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run typecheck
+        working-directory: app
+      - run: npx expo-doctor
+        working-directory: app
+      - run: npm run build:web
+        working-directory: app
+      # Gói cài server phải đóng được từ bản web vừa build.
+      - run: node scripts/pack-server.mjs
+
+  landing:
+    name: Landing (dựng thử)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: deploy/cloudflare/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare
+      - run: npm run check
+        working-directory: deploy/cloudflare

@@ -1,0 +1,52 @@
+# Deploy trang agent.wujo.dev lên Cloudflare Workers.
+# Chạy khi main thay đổi ở landing, cấu hình deploy hoặc changelog; hoặc bấm chạy tay trong tab Actions.
+# Secret cần có (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   quyền Workers Scripts: Edit, Workers R2 Storage: Edit, và DNS/Workers Routes: Edit
+#                          cho zone wujo.dev
+#   CLOUDFLARE_ACCOUNT_ID  ID tài khoản Cloudflare giữ zone wujo.dev
+name: Deploy landing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - 'deploy/cloudflare/**'
+      - 'CHANGELOG.md'
+      - 'CHANGELOG.en.md'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-landing
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: landing
+      url: https://agent.wujo.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: deploy/cloudflare/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: deploy/cloudflare
+      - run: npm run deploy
+        working-directory: deploy/cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Kiểm tra trang sau khi deploy
+        run: |
+          for path in /en/ /en/privacy /en/changelog; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://agent.wujo.dev$path")
+            echo "$path → $code"
+            [ "$code" = "200" ] || exit 1
+          done

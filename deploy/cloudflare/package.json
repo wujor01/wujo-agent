@@ -2,9 +2,9 @@
   "name": "wujoagent-cloudflare",
   "private": true,
   "scripts": {
-    "pack": "node pack-server.mjs",
-    "check": "wrangler deploy -c wrangler.landing.jsonc --dry-run",
-    "dev": "wrangler dev -c wrangler.landing.jsonc",
+    "changelog": "node build-changelog.mjs",
+    "check": "node build-changelog.mjs && wrangler deploy -c wrangler.landing.jsonc --dry-run",
+    "dev": "node build-changelog.mjs && wrangler dev -c wrangler.landing.jsonc",
     "deploy": "node deploy.mjs"
   },
   "devDependencies": {

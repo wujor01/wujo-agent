@@ -6,11 +6,13 @@ WujoAgent is an independent project, not affiliated with or endorsed by Anthropi
 
 Quản lý và chat với các session Claude Code trên máy tính từ điện thoại, qua IP mạng nội bộ hoặc Tailscale, không dùng Claude Remote Control. Trang giới thiệu: agent.wujo.dev.
 
-- `server/` — server Node chạy trên máy có Claude Code (lệnh `wujoagent`, viết tắt `cs`). Chạy từng lượt chat bằng Claude Agent SDK, hỏi quyền từng tool như trên VS Code, đọc các session có sẵn của từng workspace, xem git và fetch / pull / push.
+- `server/` — server Node chạy trên máy có Claude Code (lệnh `wujoagent`, viết tắt `wa`). Chạy từng lượt chat bằng Claude Agent SDK, hỏi quyền từng tool như trên VS Code, đọc các session có sẵn của từng workspace, xem git và fetch / pull / push.
 - `app/` — app iOS/Android (Expo). Cùng mã nguồn xuất được bản web, server tự phục vụ bản web đó.
 - `landing/` — trang giới thiệu và chính sách quyền riêng tư (vi/en).
 - `deploy/cloudflare/` — worker và cấu hình đưa landing lên Cloudflare.
-- `docs/release.md` — các bước phát hành lên App Store, bản APK, deploy landing, nội dung store.
+- `docs/release.md` — các bước phát hành lên App Store, bản APK, deploy landing, CI/CD, nội dung store.
+- `CHANGELOG.md`, `CHANGELOG.en.md` — nhật ký thay đổi; trang agent.wujo.dev/changelog dựng từ hai file này.
+- `.github/workflows/` — kiểm tra tự động, deploy landing, phát hành server, build app.
 
 Thư mục dữ liệu vẫn là `~/.claude-sessions` (tên cũ của dự án) để không mất session đã có.
 
@@ -18,18 +20,26 @@ Thư mục dữ liệu vẫn là `~/.claude-sessions` (tên cũ của dự án) 
 
 Cần Node 20 trở lên và đã đăng nhập `claude`.
 
+Bản phát hành mới nhất:
+
+```bash
+npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz
+```
+
+Hoặc từ mã nguồn:
+
 ```bash
 cd server
 npm install
 npm link
 ```
 
-`npm link` tạo lệnh `wujoagent` và tên viết tắt `cs` dùng ở mọi nơi. Không muốn link thì thay `cs` bằng `node bin/cs.js`.
+Cả hai cách đều tạo lệnh `wujoagent` và tên viết tắt `wa`. Không muốn link thì thay `wa` bằng `node bin/wujoagent.js`.
 
 ## Chạy server
 
 ```bash
-cs serve
+wa serve
 ```
 
 Server in ra token và các địa chỉ để nhập vào app, ví dụ:
@@ -47,7 +57,7 @@ Nếu điện thoại không nối được, Windows Firewall có thể đang ch
 New-NetFirewallRule -DisplayName "claude-sessions" -Direction Inbound -Protocol TCP -LocalPort 7433 -Action Allow -Profile Private
 ```
 
-Chỉ muốn nghe trên Tailscale: `cs serve --host 100.64.0.10`.
+Chỉ muốn nghe trên Tailscale: `wa serve --host 100.64.0.10`.
 
 ## Dùng trên điện thoại
 
@@ -81,7 +91,7 @@ Có ba cách, từ nhanh tới đầy đủ:
    npx eas-cli build --platform ios
    ```
 
-**Thêm máy chủ bằng mã QR.** `cs serve` in sẵn mã QR cho từng địa chỉ (Tailscale, LAN); `cs qr` in lại bất cứ lúc nào. Trong app bấm **Quét QR**, hoặc dùng camera của điện thoại quét mã: camera mở bản web và máy chủ được thêm ngay. Mã QR chứa token, đừng để người khác chụp được.
+**Thêm máy chủ bằng mã QR.** `wa serve` in sẵn mã QR cho từng địa chỉ (Tailscale, LAN); `wa qr` in lại bất cứ lúc nào. Trong app bấm **Quét QR**, hoặc dùng camera của điện thoại quét mã: camera mở bản web và máy chủ được thêm ngay. Mã QR chứa token, đừng để người khác chụp được.
 
 Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → **chọn thư mục gốc** (ví dụ `E:\work\repos`) → app liệt kê các workspace con và số session của từng cái → vào workspace để mở session cũ hoặc tạo session mới.
 
@@ -96,25 +106,25 @@ Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → 
 
 ## Dùng qua SSH
 
-`cs` nói chuyện với server đang chạy trên chính máy đó, nên SSH vào là dùng được:
+`wa` nói chuyện với server đang chạy trên chính máy đó, nên SSH vào là dùng được:
 
 ```bash
-ssh may-chu cs list
+ssh may-chu wa list
 ```
 
 | Lệnh | Việc |
 |---|---|
-| `cs serve [--port N] [--host IP]` | chạy server |
-| `cs token` | in token |
-| `cs qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
-| `cs list` | liệt kê session đã mở qua hệ thống |
-| `cs new <thư-mục> [tiêu đề]` | tạo session |
-| `cs send <id> <tin nhắn>` | gửi tin, xem trả lời, duyệt quyền bằng `y` / `a` / `n` |
-| `cs show <id>` | xem lịch sử |
-| `cs git <id> [fetch\|pull\|push]` | xem repo hoặc chạy thao tác git |
-| `cs rm <id>` | gỡ session |
+| `wa serve [--port N] [--host IP]` | chạy server |
+| `wa token` | in token |
+| `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
+| `wa list` | liệt kê session đã mở qua hệ thống |
+| `wa new <thư-mục> [tiêu đề]` | tạo session |
+| `wa send <id> <tin nhắn>` | gửi tin, xem trả lời, duyệt quyền bằng `y` / `a` / `n` |
+| `wa show <id>` | xem lịch sử |
+| `wa git <id> [fetch\|pull\|push]` | xem repo hoặc chạy thao tác git |
+| `wa rm <id>` | gỡ session |
 
-Không muốn mở cổng ra mạng thì chạy `cs serve --host 127.0.0.1` và dùng đường hầm SSH từ máy khác:
+Không muốn mở cổng ra mạng thì chạy `wa serve --host 127.0.0.1` và dùng đường hầm SSH từ máy khác:
 
 ```bash
 ssh -L 7433:127.0.0.1:7433 may-chu

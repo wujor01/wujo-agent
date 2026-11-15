@@ -1,5 +1,5 @@
 // Worker của trang agent.wujo.dev. Chỉ chạy cho các trang HTML và các link tải (xem
-// run_worker_first trong wrangler.landing.jsonc); CSS, JS, ảnh và gói server do Cloudflare phục vụ thẳng.
+// run_worker_first trong wrangler.landing.jsonc); CSS, JS và ảnh do Cloudflare phục vụ thẳng.
 //
 // Ngôn ngữ: tiếng Việt ở "/", tiếng Anh ở "/en/".
 //   - ?lang=vi|en   lựa chọn từ nút đổi ngôn ngữ: nhớ vào cookie rồi chuyển về URL sạch.
@@ -15,7 +15,7 @@
 
 const APK_KEY = 'android/wujoagent.apk';
 const YEAR = 60 * 60 * 24 * 365;
-const PAGES = new Set(['/', '/privacy']);
+const PAGES = new Set(['/', '/privacy', '/changelog']);
 
 function redirect(location, cookie) {
   const headers = { Location: location, 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
@@ -23,7 +23,7 @@ function redirect(location, cookie) {
   return new Response(null, { status: 302, headers });
 }
 
-/** URL của một trang ("/" hoặc "/privacy") trong ngôn ngữ cho trước. */
+/** URL của một trang ("/", "/privacy", "/changelog") trong ngôn ngữ cho trước. */
 function pathIn(lang, page) {
   if (lang === 'en') return page === '/' ? '/en/' : `/en${page}`;
   return page;

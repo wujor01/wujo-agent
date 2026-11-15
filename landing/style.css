@@ -98,3 +98,12 @@ header.top nav a { white-space: nowrap; }
   /* Trên điện thoại chỉ giữ nút đổi ngôn ngữ; hai mục còn lại nằm ngay bên dưới khi cuộn. */
   header.top nav a:not([lang]) { display: none; }
 }
+
+/* Nhật ký thay đổi */
+.changelog h2 { font-size: 26px; margin: 36px 0 4px; padding-top: 24px; border-top: 1px solid var(--border); }
+.changelog h2:first-of-type { border-top: none; padding-top: 0; }
+.changelog h2 .date { font-size: 14px; font-weight: 400; margin-left: 10px; }
+.changelog h3 { font-size: 17px; margin: 22px 0 8px; color: var(--text); }
+.changelog ul { padding-left: 20px; margin: 0; }
+.changelog li { margin-bottom: 7px; }
+.changelog .source { margin-top: 40px; font-size: 14px; }
