@@ -1,77 +1,78 @@
 # WujoAgent
 
-**English:** WujoAgent lets you run Claude Code on your own computer from your phone: reopen sessions, send work, approve each tool call, review git changes file by file. The phone talks straight to a small server on your machine over your LAN or Tailscale; there is no relay. Website and install guide: [agent.wujo.dev](https://agent.wujo.dev/en/). The rest of this README is in Vietnamese.
+**English** · [Tiếng Việt](README.vi.md)
+
+Manage and chat with the Claude Code sessions on your computer from your phone, over a LAN IP or Tailscale, without Claude Remote Control: reopen sessions, send work, approve each tool call, review git changes file by file. The phone talks straight to a small server on your own machine; there is no relay. Website and install guide: [agent.wujo.dev](https://agent.wujo.dev/en/).
 
 WujoAgent is an independent project, not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.
 
-Quản lý và chat với các session Claude Code trên máy tính từ điện thoại, qua IP mạng nội bộ hoặc Tailscale, không dùng Claude Remote Control. Trang giới thiệu: agent.wujo.dev.
+- `server/` — the Node server that runs on the machine with Claude Code (command `wujoagent`, short `wa`). It runs each chat turn with the Claude Agent SDK, asks permission for each tool as VS Code does, reads the existing sessions of each workspace, and shows git with fetch / pull / push.
+- `app/` — the iOS/Android app (Expo). The same source exports a web build, which the server serves itself.
+- `landing/` — the website and privacy policy (vi/en).
+- `deploy/cloudflare/` — the worker and config that put the landing page on Cloudflare.
+- `docs/release.md` — release steps for the App Store, the APK, the landing deploy, CI/CD and store text (in Vietnamese).
+- `CHANGELOG.md`, `CHANGELOG.en.md` — the changelog; agent.wujo.dev/changelog is built from these two files.
+- `README.md`, `README.vi.md` — this document in English and Vietnamese; change one, change the other.
+- `.github/workflows/` — automated checks, landing deploy, server release, app builds.
 
-- `server/` — server Node chạy trên máy có Claude Code (lệnh `wujoagent`, viết tắt `wa`). Chạy từng lượt chat bằng Claude Agent SDK, hỏi quyền từng tool như trên VS Code, đọc các session có sẵn của từng workspace, xem git và fetch / pull / push.
-- `app/` — app iOS/Android (Expo). Cùng mã nguồn xuất được bản web, server tự phục vụ bản web đó.
-- `landing/` — trang giới thiệu và chính sách quyền riêng tư (vi/en).
-- `deploy/cloudflare/` — worker và cấu hình đưa landing lên Cloudflare.
-- `docs/release.md` — các bước phát hành lên App Store, bản APK, deploy landing, CI/CD, nội dung store.
-- `CHANGELOG.md`, `CHANGELOG.en.md` — nhật ký thay đổi; trang agent.wujo.dev/changelog dựng từ hai file này.
-- `.github/workflows/` — kiểm tra tự động, deploy landing, phát hành server, build app.
+The data folder is still `~/.claude-sessions` (the project's old name) so existing sessions are not lost.
 
-Thư mục dữ liệu vẫn là `~/.claude-sessions` (tên cũ của dự án) để không mất session đã có.
+## Install (on the machine with Claude Code)
 
-## Cài đặt (trên máy có Claude Code)
+You need Node 20 or later and to be signed in to `claude`.
 
-Cần Node 20 trở lên và đã đăng nhập `claude`.
-
-Bản phát hành mới nhất:
+The latest release:
 
 ```bash
 npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz
 ```
 
-Lệnh `wa` và server mặc định nói tiếng Anh. Muốn tiếng Việt thì thêm `--wa-lang=vi` lúc cài (English is the default; `--wa-lang=en` sets it explicitly):
+The `wa` command and the server speak English by default. For Vietnamese, add `--wa-lang=vi` when installing:
 
 ```bash
 npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz --wa-lang=vi
 ```
 
-Đổi sau khi cài: `wa lang vi` hoặc `wa lang en` (server đang chạy đổi theo từ lần chạy lại `wa serve`). Biến môi trường `WA_LANG=vi|en` thắng cả hai. `wa update` giữ nguyên ngôn ngữ đã chọn. Ngôn ngữ của app trên điện thoại chọn riêng trong app.
+To change it after installing: `wa lang vi` or `wa lang en` (a running server follows from the next `wa serve`). The `WA_LANG=vi|en` environment variable overrides both. `wa update` keeps the language you chose. The language of the phone app is set separately, in the app.
 
-Hoặc từ mã nguồn:
+Or from source:
 
 ```bash
 cd server
-npm install --wa-lang=vi
+npm install
 npm link
 ```
 
-Cả hai cách đều tạo lệnh `wujoagent` và tên viết tắt `wa`. Không muốn link thì thay `wa` bằng `node bin/wujoagent.js`.
+Both ways create the `wujoagent` command and its short name `wa`. If you would rather not link, replace `wa` with `node bin/wujoagent.js`.
 
-## Chạy server
+## Run the server
 
 ```bash
 wa serve
 ```
 
-Server in ra token và các địa chỉ để nhập vào app, ví dụ (khi đã chọn tiếng Việt):
+The server prints the token and the addresses to enter in the app, for example:
 
 ```
-WujoAgent đang chạy trên 0.0.0.0:7433
+WujoAgent is running on 0.0.0.0:7433
 Token: abcd2345efgh
   Tailscale  http://100.64.0.10:7433
   LAN        http://192.168.1.10:7433
 ```
 
-Nếu điện thoại không nối được, Windows Firewall có thể đang chặn cổng. Mở cổng cho mạng riêng bằng PowerShell quyền admin (bạn tự chạy):
+If the phone cannot connect, Windows Firewall may be blocking the port. Open it for private networks from an admin PowerShell (you run this yourself):
 
 ```powershell
 New-NetFirewallRule -DisplayName "claude-sessions" -Direction Inbound -Protocol TCP -LocalPort 7433 -Action Allow -Profile Private
 ```
 
-Chỉ muốn nghe trên Tailscale: `wa serve --host 100.64.0.10`.
+To listen on Tailscale only: `wa serve --host 100.64.0.10`.
 
-## Dùng trên điện thoại
+## Use it on the phone
 
-Có ba cách, từ nhanh tới đầy đủ:
+There are three ways, from quickest to most complete:
 
-1. **Trình duyệt** — mở `http://<IP>:7433` trên Safari/Chrome. Trên iPhone bấm Chia sẻ → Thêm vào MH chính để có biểu tượng như app. Cần build bản web một lần:
+1. **Browser** — open `http://<IP>:7433` in Safari/Chrome. On iPhone tap Share → Add to Home Screen to get an app-like icon. A release install already includes the web build; from source, build it once:
 
    ```bash
    cd app
@@ -79,16 +80,16 @@ Có ba cách, từ nhanh tới đầy đủ:
    npx expo export -p web --output-dir ../server/web
    ```
 
-2. **Expo Go** — cài Expo Go trên điện thoại, rồi trên máy tính:
+2. **Expo Go** — install Expo Go on the phone, then on the computer:
 
    ```bash
    cd app
    npx expo start
    ```
 
-   Quét mã QR. Điện thoại và máy tính phải cùng mạng (hoặc cùng tailnet).
+   Scan the QR code. The phone and the computer must be on the same network (or the same tailnet).
 
-3. **App cài hẳn** — cần tài khoản Expo; iOS cần thêm tài khoản Apple Developer. Đổi `bundleIdentifier` và `package` trong `app/app.json` trước.
+3. **Installed app** — needs an Expo account; iOS also needs an Apple Developer account. Change `bundleIdentifier` and `package` in `app/app.json` first.
 
    ```bash
    cd app
@@ -99,79 +100,80 @@ Có ba cách, từ nhanh tới đầy đủ:
    npx eas-cli build --platform ios
    ```
 
-**Thêm máy chủ bằng mã QR.** `wa serve` in sẵn mã QR cho từng địa chỉ (Tailscale, LAN); `wa qr` in lại bất cứ lúc nào. Trong app bấm **Quét QR**, hoặc dùng camera của điện thoại quét mã: camera mở bản web và máy chủ được thêm ngay. Mã QR chứa token, đừng để người khác chụp được.
+**Add a server with a QR code.** `wa serve` prints a QR code for each address (Tailscale, LAN); `wa qr` prints them again at any time. In the app tap **Scan QR**, or scan the code with the phone's camera: the camera opens the web build and the server is added at once. The QR code contains the token, so do not let anyone else photograph it.
 
-Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → **chọn thư mục gốc** (ví dụ `E:\work\repos`) → app liệt kê các workspace con và số session của từng cái → vào workspace để mở session cũ hoặc tạo session mới.
+In the app: **Add server** (scan the QR code, or enter IP, port and token) → **Choose root folder** (for example `E:\work\repos`) → the app lists the workspaces inside it and how many sessions each has → open a workspace to reopen an old session or start a new one.
 
-- Session tạo từ VS Code, terminal hay desktop đều hiện ra và chat tiếp được.
-- Workspace là git repo sẽ có bảng git: nhánh, số commit lệch so với upstream, file thay đổi, commit gần đây, nút Fetch / Pull / Push. Pull chỉ chạy fast-forward. Commit hay đổi nhánh thì nhờ Claude trong chat.
-- Bấm vào một file trong bảng git để xem thay đổi của file đó so với commit gần nhất.
-- Trong màn chat, nút **± N file** ở góc trên liệt kê các file session đó đã sửa; bấm vào để xem thay đổi.
-- Nút **⚙** ở góc trên phải mở cài đặt session: model, chế độ quyền, mức sử dụng (ngữ cảnh, giới hạn 5 giờ và 7 ngày), MCP server.
-- Gõ `/` trong ô nhập để xem gợi ý lệnh của workspace (kể cả skill và lệnh riêng của dự án). `/mcp`, `/usage`, `/status` mở bảng cài đặt, `/model` mở bảng chọn model.
-- Chế độ quyền và model cũng đổi được ở dòng phía trên ô nhập.
-- Gửi tin trong lúc Claude đang làm việc: tin vào thẳng lượt đang chạy và Claude đọc nó ở bước kế tiếp, không phải chờ hết lượt.
-- Giữ lâu vào một session để gỡ khỏi app; lịch sử của Claude trên máy chủ không bị xoá.
+- Sessions created from VS Code, the terminal or the desktop app all show up and can be continued.
+- A workspace that is a git repo gets a git panel: branch, commits ahead of and behind upstream, changed files, recent commits, and Fetch / Pull / Push buttons. Pull only fast-forwards. To commit or switch branches, ask Claude in the chat.
+- Tap a file in the git panel to see its changes against the latest commit.
+- In the chat screen, the **± N files** button at the top lists the files that session has edited; tap one to see its changes.
+- The **⚙** button at the top right opens the session settings: model, permission mode, usage (context, 5-hour and 7-day limits), MCP servers.
+- Type `/` in the input box for the workspace's command suggestions (including skills and the project's own commands). `/mcp`, `/usage` and `/status` open the settings panel; `/model` opens the model picker.
+- The permission mode and model can also be changed on the line above the input box.
+- Send a message while Claude is working: it goes straight into the running turn and Claude reads it at its next step, without waiting for the turn to end.
+- Long-press a session to remove it from the app; Claude's history on the server is not deleted.
 
-## Dùng qua SSH
+## Use it over SSH
 
-`wa` nói chuyện với server đang chạy trên chính máy đó, nên SSH vào là dùng được:
+`wa` talks to the server running on that same machine, so it works once you SSH in:
 
 ```bash
-ssh may-chu wa list
+ssh my-server wa list
 ```
 
-| Lệnh | Việc |
+| Command | What it does |
 |---|---|
-| `wa serve [--port N] [--host IP]` | chạy server |
-| `wa version` | in phiên bản đang cài và bản mới nhất |
-| `wa update` | cài bản mới nhất; sau đó chạy lại `wa serve` |
-| `wa lang [vi\|en]` | xem hoặc đổi ngôn ngữ của lệnh `wa` và của server |
-| `wa token` | in token |
-| `wa token --reset` | đổi token mới; token cũ hết hiệu lực ngay, mọi thiết bị phải thêm lại máy chủ |
-| `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
-| `wa list` | liệt kê session đã mở qua hệ thống |
-| `wa new <thư-mục> [tiêu đề]` | tạo session |
-| `wa send <id> <tin nhắn>` | gửi tin, xem trả lời, duyệt quyền bằng `y` / `a` / `n` |
-| `wa show <id>` | xem lịch sử |
-| `wa git <id> [fetch\|pull\|push]` | xem repo hoặc chạy thao tác git |
-| `wa rm <id>` | gỡ session |
+| `wa serve [--port N] [--host IP]` | run the server |
+| `wa version` | print the installed version and the latest one |
+| `wa update` | install the latest version; then run `wa serve` again |
+| `wa lang [vi\|en]` | print or set the language of the `wa` command and the server |
+| `wa token` | print the token |
+| `wa token --reset` | issue a new token; the old one stops working at once and every device must add the server again |
+| `wa qr [tailscale\|lan\|IP]` | print a QR code to add the server |
+| `wa list` | list the sessions opened through WujoAgent |
+| `wa new <folder> [title]` | create a session |
+| `wa send <id> <message>` | send a message, watch the reply, answer permission requests with `y` / `a` / `n` |
+| `wa show <id>` | show the history |
+| `wa git <id> [fetch\|pull\|push]` | show the repo or run a git operation |
+| `wa rm <id>` | remove a session |
 
-Không muốn mở cổng ra mạng thì chạy `wa serve --host 127.0.0.1` và dùng đường hầm SSH từ máy khác:
+If you would rather not open a port to the network, run `wa serve --host 127.0.0.1` and use an SSH tunnel from the other machine:
 
 ```bash
-ssh -L 7433:127.0.0.1:7433 may-chu
+ssh -L 7433:127.0.0.1:7433 my-server
 ```
 
-## Cấu hình
+## Configuration
 
-Dữ liệu nằm ở `~/.claude-sessions` (`config.json`, `sessions.json`, `events/`). Biến môi trường thắng file cấu hình.
+Data lives in `~/.claude-sessions` (`config.json`, `sessions.json`, `events/`). Environment variables override the config file.
 
-| Biến | Ý nghĩa | Mặc định |
+| Variable | Meaning | Default |
 |---|---|---|
-| `CS_PORT` | cổng | 7433 |
-| `CS_HOST` | địa chỉ lắng nghe | 0.0.0.0 |
-| `CS_TOKEN` | token | sinh ngẫu nhiên lần chạy đầu |
-| `CS_DATA_DIR` | thư mục dữ liệu | `~/.claude-sessions` |
-| `WA_NO_UPDATE_CHECK` | đặt `1` để server không hỏi GitHub về bản mới | (có hỏi, 6 giờ một lần) |
-| `CS_CLAUDE_PATH` | đường dẫn `claude` nếu SDK không tự tìm thấy | (tự tìm) |
+| `CS_PORT` | port | 7433 |
+| `CS_HOST` | listen address | 0.0.0.0 |
+| `CS_TOKEN` | token | generated at random on first run |
+| `CS_DATA_DIR` | data folder | `~/.claude-sessions` |
+| `WA_LANG` | language of the `wa` command and the server, `vi` or `en` | `en`, or what was chosen at install or with `wa lang` |
+| `WA_NO_UPDATE_CHECK` | set to `1` to stop the server asking GitHub about new versions | (it asks, once every 6 hours) |
+| `CS_CLAUDE_PATH` | path to `claude` if the SDK cannot find it | (found automatically) |
 
-## Bảo mật
+## Security
 
-- Mọi API cần token; sai quá 10 lần trong một phút thì IP đó bị khoá một phút.
-- Kết nối là HTTP thường. Qua Tailscale thì đã được mã hoá; trên LAN thì token đi dạng rõ, chỉ nên dùng ở mạng bạn tin.
-- Ai có token thì điều khiển được Claude Code trên máy này với quyền của bạn. Đừng mở cổng ra internet.
-- Không có chế độ bỏ qua hỏi quyền.
-- Nghi token bị lộ thì đổi ngay: `wa token --reset`, hoặc nút **Đổi token** trong ⚙ của app. Không đổi được khi token đặt bằng biến `CS_TOKEN`.
+- Every API call needs the token; after more than 10 wrong tokens in a minute, that IP is locked out for a minute.
+- The connection is plain HTTP. Over Tailscale it is already encrypted; on a LAN the token travels in clear text, so use it only on a network you trust.
+- Anyone with the token can control Claude Code on this machine with your permissions. Do not open the port to the internet.
+- There is no mode that skips permission prompts.
+- If you think the token leaked, change it at once: `wa token --reset`, or the **Change token** button under ⚙ in the app. It cannot be changed this way when the token is set with the `CS_TOKEN` variable.
 
-## Kiểm thử
+## Tests
 
 ```bash
 cd server
 npm test
 ```
 
-Chạy thật với Claude (tốn một ít token):
+Real runs against Claude (they use a few tokens):
 
 ```bash
 node scripts/smoke.mjs
@@ -186,6 +188,6 @@ cd app
 npx tsc --noEmit
 ```
 
-## Giấy phép
+## License
 
-MIT, xem [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
