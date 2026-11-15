@@ -55,8 +55,11 @@ before(() => {
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test('workspaces: liệt kê thư mục con kèm số session, bỏ thư mục ẩn và node_modules', async () => {
-  const { workspaces } = await manager.workspaces(root);
+  const { workspaces, parent } = await manager.workspaces(root);
   assert.deepEqual(workspaces.map((w) => w.name), ['repos', 'alpha', 'beta']);
+  // thư mục cha cho dòng ".."; ở gốc ổ đĩa thì không còn cha
+  assert.equal(parent, tmp);
+  assert.equal((await manager.workspaces(path.parse(root).root)).parent, null);
   const alpha = workspaces.find((w) => w.name === 'alpha');
   // Windows không phân biệt hoa thường nên hai cách viết đường dẫn là một workspace.
   assert.equal(alpha.sessions, process.platform === 'win32' ? 2 : 1);

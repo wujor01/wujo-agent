@@ -12,7 +12,8 @@
     "not_found_handling": "404-page",
     // Chỉ các trang HTML và link tải app đi qua Worker.
     "run_worker_first": [
-      "/", "/privacy", "/changelog", "/en", "/en/", "/en/privacy", "/en/changelog", "/download/android", "/download/ios"
+      "/", "/privacy", "/changelog", "/en", "/en/", "/en/privacy", "/en/changelog", "/download/android", "/download/ios",
+      "/.well-known/*"
     ]
   },
   "vars": {
@@ -24,7 +25,13 @@
     // App Store Connect → app WujoAgent → TestFlight → nhóm thử nghiệm bên ngoài → Public Link. Khi app đã
     // lên App Store thì đổi thành https://apps.apple.com/app/id6835067140.
     // Để trống: nút tải iPhone báo "chưa mở cho mọi người".
-    "IOS_URL": ""
+    "IOS_URL": "",
+    // iOS Universal Link cho mã QR (/.well-known/apple-app-site-association; 404 khi để trống):
+    // "<Team ID>.<bundle ID>", Team ID của team Apple ký bản App Store / TestFlight.
+    "APPLE_APP_ID": "89UW5X8L7Y.dev.wujo.wujoagent",
+    // Android App Link cho mã QR (/.well-known/assetlinks.json; 404 khi để trống): vân tay SHA-256 của khoá ký,
+    // lấy bằng `npx eas-cli credentials -p android` (Keystore → SHA256 Fingerprint), dạng "AB:CD:…".
+    "ANDROID_CERT_SHA256": ""
   },
   // Bucket riêng chứa file APK (android/wujoagent.apk). `npm run deploy` tự tạo nếu chưa có.
   "r2_buckets": [{ "binding": "DOWNLOADS", "bucket_name": "wujoagent-downloads" }],

@@ -3,7 +3,7 @@ import {
   ActivityIndicator, FlatList, Keyboard, Pressable, RefreshControl, ScrollView, Text, View,
 } from 'react-native';
 import { Api, DirList, Server, SortKey, Workspace, sortDirs, sortWorkspaces, timeAgo } from '../api';
-import { Badge, Button, Card, Empty, Field, Header, KeyboardShift, Notice, Segmented, useTheme } from '../ui';
+import { Badge, Button, Card, Empty, Field, Header, KeyboardShift, Notice, Segmented, mono, useTheme } from '../ui';
 
 /** Chọn thư mục gốc trên máy chủ bằng cách đi từng cấp. */
 function DirPicker({ api, start, initialSort, onPick, onCancel }: {
@@ -75,6 +75,12 @@ function DirPicker({ api, start, initialSort, onPick, onCancel }: {
       {!list ? <ActivityIndicator style={{ marginTop: 30 }} color={t.accent} /> : (
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+          {list.path && list.parent !== null ? (
+            <Card onPress={() => go(list.parent || '')}>
+              <Text style={{ color: t.text, fontSize: 15, fontFamily: mono, fontWeight: '700' }}>..</Text>
+              <Text style={{ color: t.sub, fontSize: 12, marginTop: 2 }}>{list.parent || 'Ổ đĩa'}</Text>
+            </Card>
+          ) : null}
           {(list.path ? sortDirs(list.dirs, sort) : list.dirs).map((d) => (
             <Card key={d.path} onPress={() => go(d.path)}>
               <Text style={{ color: t.text, fontSize: 15 }}>{d.name}</Text>
@@ -96,6 +102,7 @@ export function Workspaces({ server, api, onBack, onOpen, onSetRoot, onSetSort }
   const sort: SortKey = server.sort === 'modified' || server.sort === 'name' ? server.sort : 'activity';
   const t = useTheme();
   const [items, setItems] = useState<Workspace[] | null>(null);
+  const [parent, setParent] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(!server.root);
@@ -105,7 +112,8 @@ export function Workspaces({ server, api, onBack, onOpen, onSetRoot, onSetSort }
     if (!server.root) return;
     setLoading(true); setError('');
     try {
-      setItems((await api.workspaces(server.root)).workspaces);
+      const res = await api.workspaces(server.root);
+      setItems(res.workspaces); setParent(res.parent ?? null);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -143,6 +151,14 @@ export function Workspaces({ server, api, onBack, onOpen, onSetRoot, onSetSort }
             <Notice text={error} />
             <Segmented label="Sắp xếp" value={sort} onChange={onSetSort}
               options={[{ value: 'activity', label: 'Hoạt động' }, { value: 'modified', label: 'Ngày sửa' }, { value: 'name', label: 'Tên' }]} />
+            {parent ? (
+              <View style={{ marginTop: 12 }}>
+                <Card onPress={() => { setItems(null); onSetRoot(parent); }}>
+                  <Text style={{ color: t.text, fontSize: 16, fontFamily: mono, fontWeight: '700' }}>..</Text>
+                  <Text numberOfLines={1} ellipsizeMode="head" style={{ color: t.sub, marginTop: 3, fontSize: 13 }}>{parent}</Text>
+                </Card>
+              </View>
+            ) : null}
           </View>
         )}
         ListEmptyComponent={!loading && !error ? <Empty text="Thư mục này không có thư mục con." /> : undefined}

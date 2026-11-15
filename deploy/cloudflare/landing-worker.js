@@ -13,9 +13,37 @@
 //   /download/ios      chuyển tới IOS_URL (link TestFlight công khai hoặc trang App Store).
 //   Chưa cấu hình thì quay về trang chủ kèm ?soon=..., app.js hiện dòng "chưa phát hành".
 
+//
+// Mã QR thêm máy chủ trỏ về /add#... :
+//   /add                                        trang cho mở app hoặc dùng bản web (landing/add.html)
+//   /.well-known/apple-app-site-association     để iOS mở thẳng app khi quét mã (Universal Link)
+//   /.well-known/assetlinks.json                để Android mở thẳng app (App Link); 404 khi chưa có vân tay khoá ký
+
 const APK_KEY = 'android/wujoagent.apk';
 const YEAR = 60 * 60 * 24 * 365;
 const PAGES = new Set(['/', '/privacy', '/changelog']);
+
+function json(body) {
+  return new Response(JSON.stringify(body), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' },
+  });
+}
+
+/** iOS: app nào được mở link nào của tên miền này. Chỉ /add. */
+function appleAppSiteAssociation(env) {
+  if (!env.APPLE_APP_ID) return new Response('Not found', { status: 404 });
+  return json({ applinks: { details: [{ appIDs: [env.APPLE_APP_ID], components: [{ '/': '/add' }] }] } });
+}
+
+/** Android: vân tay SHA-256 của khoá ký app (nhiều khoá cách nhau bằng dấu phẩy). */
+function assetLinks(env) {
+  const prints = (env.ANDROID_CERT_SHA256 || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!prints.length) return new Response('Not found', { status: 404 });
+  return json([{
+    relation: ['delegate_permission/common.handle_all_urls'],
+    target: { namespace: 'android_app', package_name: 'dev.wujo.wujoagent', sha256_cert_fingerprints: prints },
+  }]);
+}
 
 function redirect(location, cookie) {
   const headers = { Location: location, 'Cache-Control': 'private, no-store', Vary: 'Cookie' };
@@ -70,6 +98,8 @@ export default {
 
     if (path === '/download/android') return androidApk(request, env);
     if (path === '/download/ios') return env.IOS_URL ? redirect(env.IOS_URL) : soon(request, 'ios');
+    if (path === '/.well-known/apple-app-site-association') return appleAppSiteAssociation(env);
+    if (path === '/.well-known/assetlinks.json') return assetLinks(env);
 
     const isEnglishUrl = path === '/en' || path.startsWith('/en/');
     const page = isEnglishUrl ? path.slice(3) || '/' : path;

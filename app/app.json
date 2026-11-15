@@ -16,7 +16,10 @@
         },
         "NSLocalNetworkUsageDescription": "WujoAgent kết nối tới máy tính của bạn trong mạng nội bộ hoặc Tailscale để điều khiển Claude Code.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:agent.wujo.dev"
+      ]
     },
     "android": {
       "package": "dev.wujo.wujoagent",
@@ -32,6 +35,23 @@
       ],
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "agent.wujo.dev",
+              "pathPrefix": "/add"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {

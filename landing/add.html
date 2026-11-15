@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thêm máy chủ — WujoAgent</title>
+  <meta name="robots" content="noindex">
+  <!-- Thông tin kết nối nằm sau dấu # nên không bao giờ được gửi lên máy chủ; cũng không để lộ qua Referer. -->
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#1b1a18">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><a class="brand" href="/"><img src="/icon.png" alt="" width="32" height="32">WujoAgent</a></header>
+  <main class="doc">
+    <h1 id="title">Thêm máy chủ</h1>
+    <p id="lead">Mã QR này thêm một máy tính vào WujoAgent.</p>
+
+    <div id="actions" hidden>
+      <div class="stores">
+        <a class="store" id="open-app" href="#">Mở trong app WujoAgent<small id="open-app-note">Nếu bạn đã cài app</small></a>
+        <a class="store alt" id="open-web" href="#">Dùng bản web<small id="open-web-note">Không cần cài gì</small></a>
+      </div>
+      <p class="hint" id="host-note"></p>
+      <p class="hint" id="install-note">Chưa cài app? <a href="/download/ios">Tải cho iPhone</a> · <a href="/download/android">Tải cho Android</a>, rồi quét lại mã.</p>
+    </div>
+
+    <p class="notice" id="invalid" role="alert">Link này không có thông tin máy chủ. Chạy <code>wujoagent qr</code> trên máy tính rồi quét mã mới.</p>
+  </main>
+</div>
+<script src="/add.js" defer></script>
+</body>
+</html>

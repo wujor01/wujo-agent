@@ -332,7 +332,7 @@ test('git diff theo file: file sửa, file mới, file xoá, file nhị phân; s
 
 test('link QR: token nằm sau dấu #, liệt kê mọi địa chỉ, địa chỉ của mã đứng đầu', async () => {
   const link = addLink({ host: '192.168.1.10', port: 7433, token: 'abc 123', hosts: ['100.64.0.10', '192.168.1.10'] });
-  assert.equal(link, 'http://192.168.1.10:7433/add#t=abc%20123&p=7433&h=192.168.1.10,100.64.0.10');
+  assert.equal(link, 'https://agent.wujo.dev/add#t=abc%20123&p=7433&h=192.168.1.10,100.64.0.10');
   const url = new URL(link);
   assert.equal(url.search, ''); // không có gì nhạy cảm trong query string
   assert.equal(url.pathname, '/add');

@@ -132,7 +132,9 @@ export class Manager {
     });
     workspaces.sort((a, b) => (b.isRoot - a.isRoot) || (b.updatedAt - a.updatedAt)
       || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-    return { root, workspaces };
+    // Thư mục cha, để app có dòng ".." đi ra ngoài; null khi đã ở gốc ổ đĩa.
+    const up = path.dirname(root);
+    return { root, parent: up === root ? null : up, workspaces };
   }
 
   /** Session của một workspace: session Claude có sẵn gộp với session của hệ thống này. */

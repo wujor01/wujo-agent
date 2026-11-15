@@ -2,6 +2,17 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.1] - 2026-11-15
+
+### Changed
+
+- The QR code now points to `agent.wujo.dev/add`: scanning it with the iPhone camera opens the installed app directly. Without the app, that page offers to open the app or use the web version on your own computer.
+- The token and computer addresses still sit after the `#` in the link, so they are never sent to `agent.wujo.dev`.
+
+### Fixed
+
+- The diff view reported "file is outside this repo" when the folder was written with a Windows 8.3 short name.
+
 ## [1.0.0] - 2026-11-15
 
 First release.

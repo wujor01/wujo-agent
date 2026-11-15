@@ -88,9 +88,13 @@ export function parseAddress(input: string, fallbackPort = 7433): { host: string
 
 export type ServerLink = { hosts: string[]; port: number; token: string };
 
+/** Tên miền của mã QR (Universal Link / App Link của app). */
+export const LINK_HOST = 'agent.wujo.dev';
+
 /**
  * Đọc link thêm máy chủ lấy từ mã QR hoặc deep link:
- *   http://host:port/add#t=TOKEN&p=PORT&h=host1,host2
+ *   https://agent.wujo.dev/add#t=TOKEN&p=PORT&h=host1,host2   (mã QR; mở thẳng app qua Universal Link)
+ *   http://host:port/add#t=...                                (bản web trên chính máy tính)
  *   wujoagent://add#t=...   ·   exp://host:8081/--/add#t=...
  * Trả null nếu không phải link của claude-sessions.
  */
@@ -112,9 +116,10 @@ export function parseServerLink(text: string): ServerLink | null {
     if (host && /^[a-zA-Z0-9.\-]+$/.test(host) && !hosts.includes(host)) hosts.push(host);
   };
   let port = Number(params.p) || 0;
-  // Link http: địa chỉ trong chính link là địa chỉ người dùng vừa quét, thử nó trước.
+  // Link http tới chính máy tính: địa chỉ trong link là địa chỉ người dùng vừa quét, thử nó trước.
+  // Link của trang agent.wujo.dev thì không phải máy chủ, chỉ lấy danh sách trong `h`.
   const m = raw.match(/^https?:\/\/([^\/:#]+)(?::(\d+))?\//i);
-  if (m) { push(m[1]); if (!port && m[2]) port = Number(m[2]); }
+  if (m && m[1].toLowerCase() !== LINK_HOST) { push(m[1]); if (!port && m[2]) port = Number(m[2]); }
   for (const h of (params.h || '').split(',')) { try { push(decodeURIComponent(h)); } catch { /* bỏ qua */ } }
   if (!port) port = 7433;
   if (!hosts.length || port < 1 || port > 65535) return null;
@@ -177,7 +182,7 @@ export class Api {
   info() { return this.req<{ name: string; home: string; platform: string }>('GET', '/info', undefined, 6000); }
   dirs(path: string) { return this.req<DirList>('GET', `/dirs?path=${encodeURIComponent(path)}`); }
   workspaces(root: string) {
-    return this.req<{ root: string; workspaces: Workspace[] }>('GET', `/workspaces?root=${encodeURIComponent(root)}`, undefined, 30000);
+    return this.req<{ root: string; parent?: string | null; workspaces: Workspace[] }>('GET', `/workspaces?root=${encodeURIComponent(root)}`, undefined, 30000);
   }
   workspaceSessions(path: string) {
     return this.req<{ path: string; sessions: WorkspaceSession[] }>('GET', `/workspace-sessions?path=${encodeURIComponent(path)}`, undefined, 30000);

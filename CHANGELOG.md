@@ -2,6 +2,17 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.1] - 2026-11-15
+
+### Thay đổi
+
+- Mã QR giờ trỏ về `agent.wujo.dev/add`: quét bằng camera của iPhone sẽ mở thẳng app đã cài. Chưa cài app thì trang đó cho chọn mở app hoặc dùng bản web trên chính máy tính.
+- Token và địa chỉ máy tính vẫn nằm sau dấu `#` trong link, nên không được gửi lên `agent.wujo.dev`.
+
+### Sửa lỗi
+
+- Xem diff báo "file nằm ngoài repo" khi thư mục được viết theo tên ngắn 8.3 của Windows.
+
 ## [1.0.0] - 2026-11-15
 
 Bản phát hành đầu tiên.

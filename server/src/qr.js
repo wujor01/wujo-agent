@@ -1,18 +1,22 @@
 import qrcode from 'qrcode-terminal';
 import { localAddresses } from './config.js';
 
+export const LINK_BASE = 'https://agent.wujo.dev/add';
+
 /**
  * Link để thêm máy chủ vào app bằng cách quét QR.
  *
- *   http://<host>:<port>/add#t=<token>&p=<port>&h=<host1>,<host2>
+ *   https://agent.wujo.dev/add#t=<token>&p=<port>&h=<host1>,<host2>
  *
- * - Là link http tới chính server, nên camera thường của điện thoại mở được ngay bản web.
- * - Token nằm sau dấu # nên trình duyệt không gửi nó lên server và nó không vào log.
- * - `h` liệt kê mọi địa chỉ của máy (Tailscale, LAN); app trong máy sẽ thử lần lượt và giữ cái nối được.
+ * - Là Universal Link / App Link của app: camera của điện thoại mở thẳng app nếu đã cài. Chưa cài thì
+ *   mở trang agent.wujo.dev/add, trang đó cho mở app hoặc dùng bản web trên chính máy tính này.
+ * - Token và địa chỉ nằm sau dấu # nên trình duyệt không gửi chúng lên agent.wujo.dev.
+ * - `h` liệt kê mọi địa chỉ của máy (Tailscale, LAN), địa chỉ của mã đứng đầu; app thử lần lượt và
+ *   giữ cái nối được.
  */
 export function addLink({ host, port, token, hosts = [host] }) {
   const all = [host, ...hosts.filter((h) => h !== host)];
-  return `http://${host}:${port}/add#t=${encodeURIComponent(token)}&p=${port}&h=${all.map(encodeURIComponent).join(',')}`;
+  return `${LINK_BASE}#t=${encodeURIComponent(token)}&p=${port}&h=${all.map(encodeURIComponent).join(',')}`;
 }
 
 /** Các địa chỉ mà điện thoại có thể dùng để nối tới server này. */
