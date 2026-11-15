@@ -2,6 +2,14 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.3] - 2026-11-15
+
+### Changed
+
+- You can send messages while Claude is working: they are queued and sent as the next turn when the current one ends. Tapping Stop sends the queued messages right away. The queue can be cancelled.
+- The chat shows what Claude is doing (thinking, writing, which tool is running) and how long the turn has been going.
+- Opening the keyboard no longer pushes the end of the conversation out of view; if you scrolled up to read, the list no longer jumps back to the end.
+
 ## [1.0.2] - 2026-11-15
 
 ### Changed

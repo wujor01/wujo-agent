@@ -3,7 +3,7 @@ import {
   ActivityIndicator, AppState, BackHandler, FlatList, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet,
   Text, TextInput, View,
 } from 'react-native';
-import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, Server, Session, matchCommands, timeUntil } from '../api';
+import { Api, Capabilities, ChatEvent, Limits, Mode, Pending, PollResult, Server, Session, matchCommands, timeUntil } from '../api';
 import { disablePush, enablePush, pushSupported, setOpenSession } from '../push';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Header, KeyboardShift, mono, useTheme } from '../ui';
@@ -203,6 +203,34 @@ function PermissionCard({ pending, onAnswer, busy }: {
 }
 
 /**
+ * Dòng cho biết Claude đang làm gì và lượt này đã chạy bao lâu, để nhìn vào là biết agent còn đang xử lý.
+ * Đồng hồ tự chạy mỗi giây ở phía app; nội dung do máy tính báo sang.
+ */
+function WorkingRow({ activity, started }: { activity: PollResult['activity']; started: number }) {
+  const t = useTheme();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const label = !activity || activity.kind === 'working' ? tr('Claude đang làm việc', 'Claude is working')
+    : activity.kind === 'starting' ? tr('Đang bắt đầu', 'Starting')
+    : activity.kind === 'thinking' ? tr('Claude đang suy nghĩ', 'Claude is thinking')
+    : activity.kind === 'writing' ? tr('Claude đang viết', 'Claude is writing')
+    : tr(`Đang chạy ${activity.name || 'tool'}`, `Running ${activity.name || 'a tool'}`);
+  const secs = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+  const elapsed = secs >= 60 ? `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : `${secs}s`;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8 }}
+      accessible accessibilityRole="progressbar" accessibilityLabel={label}>
+      <ActivityIndicator size="small" color={t.accent} />
+      <Text style={{ color: t.sub, fontSize: 14 }}>{label}…</Text>
+      {started ? <Text style={{ color: t.sub, fontSize: 13, fontVariant: ['tabular-nums'] }}>{elapsed}</Text> : null}
+    </View>
+  );
+}
+
+/**
  * Thẻ xin quyền hiện thành popup giữa màn hình, không nằm trong dòng chat (ở đó nó bị trôi khi chat cuộn).
  * "Xem cuộc trò chuyện" thu popup lại thành một thanh phía trên ô nhập để người dùng đọc lại ngữ cảnh
  * trước khi quyết định; yêu cầu vẫn đang chờ cho tới khi được trả lời.
@@ -343,6 +371,9 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const [sheet, setSheet] = useState<'model' | 'settings' | 'changes' | null>(null);
   const [viewing, setViewing] = useState<SessionChange | null>(null);
   const [limits, setLimits] = useState<Limits>({});
+  const [activity, setActivity] = useState<PollResult['activity']>(null);
+  const [started, setStarted] = useState(0); // thời điểm lượt hiện tại bắt đầu, quy về đồng hồ của điện thoại
+  const [queued, setQueued] = useState<string[]>([]); // tin đã gửi trong lúc Claude bận, đang chờ lượt kế tiếp
 
   // Model, lệnh gạch chéo và MCP server dùng được trong workspace này.
   async function loadCaps(fresh: boolean) {
@@ -381,6 +412,9 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
           v = out.v; epoch = out.epoch;
           setSession(out.session); setPartial(out.partial); setPending(out.pending);
           if (out.limits) setLimits(out.limits);
+          setQueued(out.queued || []);
+          setActivity(out.activity || null);
+          setStarted(out.runningMs ? Date.now() - out.runningMs : 0);
           setOffline(''); setLoaded(true);
         } catch (e: any) {
           if (ac.signal.aborted) return;
@@ -402,7 +436,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
 
   async function send() {
     const msg = text.trim();
-    if (!msg || busy || sending) return;
+    if (!msg || sending) return; // Claude đang bận vẫn gửi được: máy tính xếp tin vào hàng chờ
     // Hai lệnh này là bảng điều khiển trong Claude Code, không phải lời nhắn cho Claude: mở bảng tương ứng.
     if (msg === '/mcp' || msg === '/usage' || msg === '/status') { setText(''); Keyboard.dismiss(); setSheet('settings'); loadCaps(true); return; }
     if (msg === '/model') { setText(''); Keyboard.dismiss(); setSheet('model'); return; }
@@ -473,7 +507,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const footer = (
     <View>
       {partial ? <View style={s.row}><RichText text={partial} color={t.text} /></View> : null}
-      {busy && !partial && !pending ? <Text style={{ color: t.sub, paddingHorizontal: 16, paddingVertical: 6 }}>{tr('Claude đang làm việc…', 'Claude is working…')}</Text> : null}
+      {busy && !pending ? <WorkingRow activity={activity} started={started} /> : null}
     </View>
   );
 
@@ -546,6 +580,20 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         <PermissionPopup key={pending.requestId} pending={pending} onAnswer={answer} busy={answering}
           onHide={() => setPermHidden(true)} />
       ) : null}
+      {queued.length > 0 ? (
+        <View style={[s.queued, { borderTopColor: t.border, backgroundColor: t.card }]}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: t.sub, fontSize: 12, fontWeight: '700' }}>
+              {tr(`${queued.length} tin chờ gửi khi Claude xong`, `${queued.length} ${queued.length === 1 ? 'message' : 'messages'} queued until Claude finishes`)}
+            </Text>
+            {queued.map((q, i) => (
+              <Text key={i} numberOfLines={2} style={{ color: t.text, fontSize: 14, marginTop: 3 }}>{q}</Text>
+            ))}
+          </View>
+          <Button small kind="plain" label={tr('Huỷ', 'Cancel')}
+            onPress={() => api.clearQueue(session.id).then(() => setQueued([])).catch((e) => setError(e.message))} />
+        </View>
+      ) : null}
       {error ? <Text style={[s.banner, { color: t.danger, borderColor: t.border }]}>{error}</Text> : null}
       {suggestions.length > 0 ? (
         <View style={[s.suggest, { borderTopColor: t.border, backgroundColor: t.card }]}>
@@ -582,9 +630,8 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
             multiline
             style={[s.input, { color: t.text, borderColor: t.border, backgroundColor: t.card }]}
           />
-          {busy
-            ? <Button kind="danger" label={tr('Dừng', 'Stop')} onPress={() => api.interrupt(session.id).catch((e) => setError(e.message))} />
-            : <Button label={tr('Gửi', 'Send')} onPress={send} busy={sending} disabled={!text.trim()} />}
+          {busy ? <Button kind="danger" label={tr('Dừng', 'Stop')} onPress={() => api.interrupt(session.id).catch((e) => setError(e.message))} /> : null}
+          {!busy || text.trim() ? <Button label={tr('Gửi', 'Send')} onPress={send} busy={sending} disabled={!text.trim()} /> : null}
         </View>
       </View>
       {sheet === 'model' ? (
@@ -753,6 +800,7 @@ const s = StyleSheet.create({
   popupBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 18 },
   popup: { width: '100%', maxWidth: 520, maxHeight: '100%', borderWidth: 1.5, borderRadius: 16, overflow: 'hidden' },
   popupHide: { alignItems: 'center', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  queued: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth },
   waitBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11 },
   option: { borderRadius: 10, padding: 10, marginBottom: 6 },
   banner: { paddingHorizontal: 16, paddingVertical: 6, fontSize: 13, borderBottomWidth: StyleSheet.hairlineWidth },

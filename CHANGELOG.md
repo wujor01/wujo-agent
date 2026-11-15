@@ -2,6 +2,14 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.3] - 2026-11-15
+
+### Thay đổi
+
+- Gửi được tin nhắn trong lúc Claude đang làm việc: tin được xếp hàng và gửi thành lượt kế tiếp khi lượt hiện tại xong. Bấm Dừng thì tin đang chờ được gửi ngay. Hàng chờ huỷ được.
+- Màn chat cho biết Claude đang làm gì (đang suy nghĩ, đang viết, đang chạy tool nào) và lượt đó đã chạy bao lâu.
+- Mở bàn phím không còn làm phần cuối cuộc trò chuyện bị hụt lên; đang kéo lên đọc tin cũ thì danh sách không tự giật về cuối.
+
 ## [1.0.2] - 2026-11-15
 
 ### Thay đổi

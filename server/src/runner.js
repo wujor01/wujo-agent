@@ -70,6 +70,13 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
         if (msg.parent_tool_use_id) continue; // bỏ qua chữ đang gõ của subagent
         const ev = msg.event;
         if (ev.type === 'message_start') partial = '';
+        // Claude vừa chuyển sang việc gì: suy nghĩ, viết câu trả lời, hay gọi một tool.
+        if (ev.type === 'content_block_start') {
+          const kind = ev.content_block?.type;
+          if (kind === 'thinking' || kind === 'redacted_thinking') onEvent({ type: 'activity', kind: 'thinking' });
+          else if (kind === 'text') onEvent({ type: 'activity', kind: 'writing' });
+          else if (kind === 'tool_use' || kind === 'server_tool_use') onEvent({ type: 'activity', kind: 'tool', name: ev.content_block.name });
+        }
         if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') {
           partial += ev.delta.text;
           onEvent({ type: 'partial', text: partial });

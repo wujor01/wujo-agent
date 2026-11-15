@@ -41,7 +41,8 @@ export type Pending = {
 
 export type PollResult = {
   session: Session; events: ChatEvent[]; partial: string; pending: Pending | null;
-  v: number; epoch: number; reset: boolean; limits?: Limits;
+  v: number; epoch: number; reset: boolean; limits?: Limits; queued?: string[];
+  activity?: { kind: 'starting' | 'thinking' | 'writing' | 'tool' | 'working'; name?: string } | null; runningMs?: number;
 };
 
 export type Limits = Record<string, { percent: number; resetsAt: number | null; status: string; at: number }>;
@@ -210,6 +211,7 @@ export class Api {
   pushUnregister(token: string) { return this.req<{ ok: boolean; devices: number }>('POST', '/push/unregister', { token }); }
   send(id: string, text: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/messages`, { text }); }
   interrupt(id: string) { return this.req<{ session: Session }>('POST', `/sessions/${id}/interrupt`); }
+  clearQueue(id: string) { return this.req<{ session: Session }>('DELETE', `/sessions/${id}/queue`); }
   permission(id: string, body: { requestId: string; decision: 'allow' | 'allow_always' | 'deny'; message?: string; answers?: Record<string, string> }) {
     return this.req<{ session: Session }>('POST', `/sessions/${id}/permission`, body);
   }

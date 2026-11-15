@@ -31,6 +31,11 @@ async function runner({ text, model, onEvent, askPermission }) {
     sdkAbort = new AbortController();
     const a = await askPermission({ toolName: 'Write', input: {} }, sdkAbort.signal);
     onEvent({ type: 'assistant', text: `huỷ:${a.decision}:${Boolean(a.cancelled)}` });
+  } else if (text === 'act') {
+    onEvent({ type: 'activity', kind: 'thinking' });
+    onEvent({ type: 'activity', kind: 'tool', name: 'Bash' });
+    await new Promise((r) => setTimeout(r, 80));
+    onEvent({ type: 'assistant', text: 'ok' });
   } else {
     onEvent({ type: 'assistant', text: 'ok' });
     if (text === 'usage') {
@@ -400,4 +405,16 @@ test('chế độ quyền: nhận auto, truyền cho runner; không nhận bypas
   assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'bypassPermissions' })).status, 400);
   assert.equal((await call('PATCH', `/api/sessions/${id}`, { mode: 'dontAsk' })).status, 400);
   assert.equal((await call('GET', `/api/sessions/${id}`)).body.session.mode, 'auto');
+});
+
+test('hoạt động của Claude (suy nghĩ, gọi tool) hiện trong poll và không lẫn vào lịch sử chat', async () => {
+  const s = manager.create({ cwd: work });
+  manager.send(s.id, 'act');
+  await new Promise((r) => setTimeout(r, 30));
+  const mid = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.deepEqual(mid.activity, { kind: 'tool', name: 'Bash' });
+  await pollUntil(s.id, (o) => o.session.status === 'idle');
+  const out = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.equal(out.activity, null);
+  assert.ok(!out.events.some((e) => e.type === 'activity'));
 });

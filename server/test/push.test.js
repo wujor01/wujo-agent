@@ -159,3 +159,45 @@ test('mất mạng hoặc Expo lỗi không làm hỏng lượt chat', async () 
   assert.equal(await broken.send('done', { sessionId: 'x', cwd: work }), 0);
   assert.equal(await broken.send('kiểu-lạ', { sessionId: 'x', cwd: work }), 0);
 });
+
+test('tin gửi trong lúc Claude bận: xếp hàng, gộp lại thành lượt kế tiếp; Dừng thì tin chờ được gửi ngay', async () => {
+  const s = manager.create({ cwd: work });
+  let open; gate = new Promise((r) => { open = r; });
+  sent.length = 0;
+  manager.send(s.id, 'wait');
+  manager.send(s.id, 'thêm một');
+  manager.send(s.id, 'thêm hai');
+  assert.deepEqual((await manager.poll(s.id, { after: 0, waitMs: 0 })).queued, ['thêm một', 'thêm hai']);
+  open();
+  for (let i = 0; i < 200; i++) { const o = await manager.poll(s.id, { after: 0, waitMs: 0 }); if (o.session.status === 'idle' && !o.queued.length) break; await new Promise((r) => setTimeout(r, 10)); }
+  const out = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  const users = out.events.filter((e) => e.type === 'user').map((e) => e.text);
+  assert.deepEqual(users, ['wait', 'thêm một\n\nthêm hai']);
+  assert.equal(out.events.filter((e) => e.type === 'result').length, 2);
+  assert.deepEqual(out.queued, []);
+
+  // gõ lời sửa trong lúc Claude chạy rồi bấm Dừng: lượt cũ dừng, lời sửa được gửi ngay
+  manager.send(s.id, 'hang');
+  manager.send(s.id, 'sửa lại hướng');
+  manager.interrupt(s.id);
+  for (let i = 0; i < 200; i++) { const o = await manager.poll(s.id, { after: 0, waitMs: 0 }); if (o.session.status === 'idle' && !o.queued.length && o.events.at(-1).type === 'result') break; await new Promise((r) => setTimeout(r, 10)); }
+  const after = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  const tail = after.events.slice(-4).map((e) => e.type + (e.type === 'user' ? ':' + e.text : ''));
+  assert.deepEqual(tail, ['stopped', 'user:sửa lại hướng', 'assistant', 'result']);
+});
+
+test('đang chạy thì poll cho biết Claude đang làm gì và đã bao lâu; xong thì hết', async () => {
+  const s = manager.create({ cwd: work });
+  let open; gate = new Promise((r) => { open = r; });
+  const idleState = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.equal(idleState.activity, null);
+  assert.equal(idleState.runningMs, 0);
+  manager.send(s.id, 'wait');
+  await new Promise((r) => setTimeout(r, 60));
+  const mid = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.deepEqual(mid.activity, { kind: 'starting' });
+  assert.ok(mid.runningMs >= 50 && mid.runningMs < 5000, String(mid.runningMs));
+  open();
+  await idle(s.id);
+  assert.equal((await manager.poll(s.id, { after: 0, waitMs: 0 })).activity, null);
+});

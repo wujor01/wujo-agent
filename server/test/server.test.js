@@ -125,11 +125,17 @@ test('một lượt chat: tiếng Việt nguyên vẹn, có stream, lưu claudeS
   assert.ok(done2.events.find((e) => e.type === 'assistant').text.includes('resume=claude-abc'));
 });
 
-test('gửi tin khi lượt trước đang chạy → 409; Dừng thì về idle', async () => {
+test('gửi tin khi lượt trước đang chạy → xếp hàng chờ; bỏ hàng chờ rồi Dừng thì về idle', async () => {
   const { body: { session } } = await call('POST', '/sessions', { cwd: work });
   await call('POST', `/sessions/${session.id}/messages`, { text: 'hang' });
   const again = await call('POST', `/sessions/${session.id}/messages`, { text: 'chen ngang' });
-  assert.equal(again.status, 409);
+  assert.equal(again.status, 202);
+  assert.equal(again.body.session.status, 'running');
+  const mid = await call('GET', `/sessions/${session.id}/events?after=0&wait=0`);
+  assert.deepEqual(mid.body.queued, ['chen ngang']);
+  assert.deepEqual(mid.body.events.map((e) => e.type), ['user']); // tin đang chờ chưa vào lịch sử
+  assert.equal((await call('DELETE', `/sessions/${session.id}/queue`)).status, 200);
+  assert.deepEqual((await call('GET', `/sessions/${session.id}/events?after=0&wait=0`)).body.queued, []);
   await call('POST', `/sessions/${session.id}/interrupt`);
   const done = await waitIdle(session.id);
   assert.equal(done.events.at(-1).type, 'stopped');

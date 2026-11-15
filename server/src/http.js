@@ -152,6 +152,8 @@ export function createServer({ manager, token, webDir, capabilities, push, name 
         return send(res, 202, { session: manager.send(id, body.text) });
       } else if (sub === 'permission' && method === 'POST') {
         return send(res, 200, { session: manager.permission(id, await readJson(req)) });
+      } else if (sub === 'queue' && method === 'DELETE') {
+        return send(res, 200, { session: manager.clearQueue(id) });
       } else if (sub === 'interrupt' && method === 'POST') {
         return send(res, 200, { session: manager.interrupt(id) });
       } else if (sub === 'capabilities' && method === 'GET') {
