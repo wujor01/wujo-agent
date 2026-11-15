@@ -151,6 +151,15 @@ test('transcriptToEvents: bỏ chữ hệ thống chèn và lượt subagent, gi
     { type: 'system', parent_tool_use_id: null, message: {} },
   ]);
   assert.deepEqual(events.map((e) => e.type), ['user', 'assistant', 'tool_use', 'tool_result']);
+  // khối suy nghĩ có nội dung thì thành một dòng; khối rỗng (chỉ có chữ ký) thì bỏ
+  const withThinking = transcriptToEvents([
+    { type: 'assistant', parent_tool_use_id: null, message: { content: [
+      { type: 'thinking', thinking: '', signature: 'x' },
+      { type: 'thinking', thinking: 'Cân nhắc hai cách.', signature: 'y' },
+      { type: 'text', text: 'Chọn cách một.' },
+    ] } },
+  ]);
+  assert.deepEqual(withThinking.map((e) => [e.type, e.text]), [['thinking', 'Cân nhắc hai cách.'], ['assistant', 'Chọn cách một.']]);
   assert.equal(events[0].text, 'Chào bạn');
   assert.equal(events[3].text, 'nội dung');
 });

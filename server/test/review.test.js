@@ -31,6 +31,13 @@ async function runner({ text, model, onEvent, askPermission }) {
     sdkAbort = new AbortController();
     const a = await askPermission({ toolName: 'Write', input: {} }, sdkAbort.signal);
     onEvent({ type: 'assistant', text: `huỷ:${a.decision}:${Boolean(a.cancelled)}` });
+  } else if (text === 'think') {
+    onEvent({ type: 'activity', kind: 'thinking' });
+    onEvent({ type: 'thinking_partial', text: 'Người dùng muốn' });
+    onEvent({ type: 'thinking_partial', text: 'Người dùng muốn một câu trả lời ngắn.' });
+    await new Promise((r) => setTimeout(r, 80));
+    onEvent({ type: 'thinking', text: 'Người dùng muốn một câu trả lời ngắn.' });
+    onEvent({ type: 'assistant', text: 'ok' });
   } else if (text === 'act') {
     onEvent({ type: 'activity', kind: 'thinking' });
     onEvent({ type: 'activity', kind: 'tool', name: 'Bash' });
@@ -417,4 +424,18 @@ test('hoạt động của Claude (suy nghĩ, gọi tool) hiện trong poll và 
   const out = await manager.poll(s.id, { after: 0, waitMs: 0 });
   assert.equal(out.activity, null);
   assert.ok(!out.events.some((e) => e.type === 'activity'));
+});
+
+test('suy nghĩ của Claude: chạy ra dần trong poll, xong thì thành một dòng trong lịch sử', async () => {
+  const s = manager.create({ cwd: work });
+  manager.send(s.id, 'think');
+  await new Promise((r) => setTimeout(r, 30));
+  const mid = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.equal(mid.thinking, 'Người dùng muốn một câu trả lời ngắn.');
+  assert.ok(!mid.events.some((e) => e.type === 'thinking'));
+  await pollUntil(s.id, (o) => o.session.status === 'idle');
+  const out = await manager.poll(s.id, { after: 0, waitMs: 0 });
+  assert.equal(out.thinking, '');
+  assert.deepEqual(out.events.map((e) => e.type), ['user', 'thinking', 'assistant', 'result']);
+  assert.equal(out.events[1].text, 'Người dùng muốn một câu trả lời ngắn.');
 });

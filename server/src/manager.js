@@ -261,6 +261,7 @@ export class Manager {
     this.#append(id, live, { type: 'user', text });
     live.partial = '';
     live.activity = { kind: 'starting' };
+    live.thinking = '';
     live.startedAt = Date.now();
     live.abort = new AbortController();
     const signal = live.abort.signal;
@@ -384,6 +385,7 @@ export class Manager {
       session: this.get(id),
       events: live.events.filter((e) => e.seq > after),
       partial: live.partial,
+      thinking: meta.status === 'idle' ? '' : (live.thinking || ''), // suy nghĩ đang chạy ra, chưa thành một dòng trong lịch sử
       pending: live.queue.length ? live.queue[0].request : null,
       v: live.version,
       epoch: live.epoch,
@@ -559,6 +561,12 @@ export class Manager {
       if (MODES.includes(ev.mode)) { meta.mode = ev.mode; this.#save(); this.#bump(id); }
       return;
     }
+    if (ev.type === 'thinking_partial') {
+      live.thinking = ev.text;
+      this.#bump(id);
+      return;
+    }
+    if (ev.type === 'thinking' || ev.type === 'assistant' || ev.type === 'tool_use') live.thinking = '';
     if (ev.type === 'assistant') live.partial = '';
     this.#append(id, live, ev);
   }

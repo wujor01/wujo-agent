@@ -28,7 +28,7 @@ export type Workspace = {
 
 export type ChatEvent = {
   seq: number; ts: number;
-  type: 'user' | 'assistant' | 'tool_use' | 'tool_result' | 'permission_request' | 'permission_resolved'
+  type: 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result' | 'permission_request' | 'permission_resolved'
     | 'result' | 'error' | 'stopped';
   text?: string; name?: string; input?: any; toolId?: string; isError?: boolean; ok?: boolean;
   requestId?: string; decision?: string; toolName?: string; title?: string; costUsd?: number | null;
@@ -40,7 +40,7 @@ export type Pending = {
 };
 
 export type PollResult = {
-  session: Session; events: ChatEvent[]; partial: string; pending: Pending | null;
+  session: Session; events: ChatEvent[]; partial: string; thinking?: string; pending: Pending | null;
   v: number; epoch: number; reset: boolean; limits?: Limits; queued?: string[];
   activity?: { kind: 'starting' | 'thinking' | 'writing' | 'tool' | 'working'; name?: string } | null; runningMs?: number;
 };

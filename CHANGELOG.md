@@ -2,6 +2,12 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.4] - 2026-11-15
+
+### Thêm
+
+- Xem được Claude đang nghĩ gì: bản tóm tắt suy nghĩ chạy ra dần trong lúc Claude làm việc, và nằm lại trong lịch sử dưới dạng dòng "Suy nghĩ" bấm để mở.
+
 ## [1.0.3] - 2026-11-15
 
 ### Thay đổi

@@ -96,7 +96,9 @@ export function transcriptToEvents(messages) {
       }
     } else if (m.type === 'assistant') {
       for (const block of Array.isArray(content) ? content : []) {
-        if (block.type === 'text' && block.text.trim()) events.push({ type: 'assistant', text: block.text });
+        if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking.trim()) {
+          events.push({ type: 'thinking', text: clip(block.thinking) });
+        } else if (block.type === 'text' && block.text.trim()) events.push({ type: 'assistant', text: block.text });
         else if (block.type === 'tool_use') {
           events.push({ type: 'tool_use', toolId: block.id, name: block.name, input: block.input });
         }

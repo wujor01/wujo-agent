@@ -97,7 +97,7 @@ function RichText({ text, color }: { text: string; color: string }) {
 }
 
 type Row =
-  | { key: string; kind: 'user' | 'assistant' | 'note' | 'error'; text: string }
+  | { key: string; kind: 'user' | 'assistant' | 'thinking' | 'note' | 'error'; text: string }
   | { key: string; kind: 'tool'; name: string; summary: string; result?: string; isError?: boolean };
 
 function buildRows(events: ChatEvent[]): Row[] {
@@ -106,6 +106,7 @@ function buildRows(events: ChatEvent[]): Row[] {
   for (const e of events) {
     const key = `e${e.seq}`;
     if (e.type === 'user') rows.push({ key, kind: 'user', text: e.text || '' });
+    else if (e.type === 'thinking') rows.push({ key, kind: 'thinking', text: e.text || '' });
     else if (e.type === 'assistant') rows.push({ key, kind: 'assistant', text: e.text || '' });
     else if (e.type === 'tool_use') {
       const row = { key, kind: 'tool' as const, name: e.name || 'tool', summary: toolSummary(e.name || '', e.input) };
@@ -199,6 +200,23 @@ function PermissionCard({ pending, onAnswer, busy }: {
         <Button kind="danger" label={tr('Từ chối', 'Deny')} disabled={busy} onPress={() => onAnswer('deny')} />
       </View>
     </View>
+  );
+}
+
+/** Suy nghĩ của Claude trong lịch sử: thu gọn một dòng, bấm để xem hết. */
+function ThinkingRow({ text }: { text: string }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable onPress={() => setOpen(!open)} accessibilityRole="button"
+      accessibilityLabel={tr('Suy nghĩ của Claude', "Claude's thinking")} accessibilityState={{ expanded: open }}
+      style={[s.thinking, { borderLeftColor: t.border }]}>
+      <Text style={{ color: t.sub, fontSize: 12, fontWeight: '700' }}>
+        {tr('Suy nghĩ', 'Thinking')} {open ? '▾' : '▸'}
+      </Text>
+      <Text numberOfLines={open ? undefined : 1} selectable={open}
+        style={{ color: t.sub, fontSize: 13.5, lineHeight: 19, fontStyle: 'italic', marginTop: 2 }}>{text}</Text>
+    </Pressable>
   );
 }
 
@@ -333,6 +351,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const [session, setSession] = useState(initial);
   const [events, setEvents] = useState<ChatEvent[]>([]);
   const [partial, setPartial] = useState('');
+  const [thinking, setThinking] = useState(''); // suy nghĩ của Claude đang chạy ra
   const [pending, setPending] = useState<Pending | null>(null);
   const [offline, setOffline] = useState('');
   const [loaded, setLoaded] = useState(false);
@@ -410,7 +429,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
           if (fresh.length) after = fresh[fresh.length - 1].seq;
           else if (out.reset) after = 0;
           v = out.v; epoch = out.epoch;
-          setSession(out.session); setPartial(out.partial); setPending(out.pending);
+          setSession(out.session); setPartial(out.partial); setThinking(out.thinking || ''); setPending(out.pending);
           if (out.limits) setLimits(out.limits);
           setQueued(out.queued || []);
           setActivity(out.activity || null);
@@ -507,6 +526,11 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
   const footer = (
     <View>
       {partial ? <View style={s.row}><RichText text={partial} color={t.text} /></View> : null}
+      {busy && thinking ? (
+        <View style={[s.thinking, { borderLeftColor: t.border }]}>
+          <Text style={{ color: t.sub, fontSize: 13.5, lineHeight: 19, fontStyle: 'italic' }}>{thinking}</Text>
+        </View>
+      ) : null}
       {busy && !pending ? <WorkingRow activity={activity} started={started} /> : null}
     </View>
   );
@@ -552,6 +576,7 @@ export function Chat({ api, session: initial, server, onServerChange, onBack }: 
         ListFooterComponent={footer}
         renderItem={({ item: r }) => {
           if (r.kind === 'tool') return <ToolRow row={r} />;
+          if (r.kind === 'thinking') return <ThinkingRow text={r.text} />;
           if (r.kind === 'user') {
             return (
               <View style={[s.user, { backgroundColor: t.userBubble }]}>
@@ -801,6 +826,7 @@ const s = StyleSheet.create({
   popup: { width: '100%', maxWidth: 520, maxHeight: '100%', borderWidth: 1.5, borderRadius: 16, overflow: 'hidden' },
   popupHide: { alignItems: 'center', paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
   queued: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 14, paddingVertical: 9, borderTopWidth: StyleSheet.hairlineWidth },
+  thinking: { marginHorizontal: 16, marginVertical: 4, paddingLeft: 10, borderLeftWidth: 2 },
   waitBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 11 },
   option: { borderRadius: 10, padding: 10, marginBottom: 6 },
   banner: { paddingHorizontal: 16, paddingVertical: 6, fontSize: 13, borderBottomWidth: StyleSheet.hairlineWidth },

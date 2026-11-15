@@ -2,6 +2,12 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.4] - 2026-11-15
+
+### Added
+
+- You can see what Claude is thinking: a summary of its thinking streams in while it works, and stays in the history as a "Thinking" row you tap to expand.
+
 ## [1.0.3] - 2026-11-15
 
 ### Changed

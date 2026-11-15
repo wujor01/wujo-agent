@@ -24,6 +24,9 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
     cwd,
     permissionMode: mode,
     includePartialMessages: true,
+    // Mặc định Claude Code không gửi nội dung suy nghĩ (chỉ có chữ ký). 'summarized' cho bản tóm tắt chạy ra
+    // dần, để app hiện được Claude đang nghĩ gì.
+    thinking: { type: 'adaptive', display: 'summarized' },
     abortController,
     canUseTool: async (toolName, toolInput, ctx) => {
       const answer = await askPermission({
@@ -60,6 +63,7 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
   if (process.env.CS_CLAUDE_PATH) options.pathToClaudeCodeExecutable = process.env.CS_CLAUDE_PATH;
 
   let partial = '';
+  let thinking = ''; // bản tóm tắt suy nghĩ đang chạy ra của tin hiện tại
   let sawResult = false;
   try {
     const q = query({ prompt: input(), options });
@@ -69,7 +73,11 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
       } else if (msg.type === 'stream_event') {
         if (msg.parent_tool_use_id) continue; // bỏ qua chữ đang gõ của subagent
         const ev = msg.event;
-        if (ev.type === 'message_start') partial = '';
+        if (ev.type === 'message_start') { partial = ''; thinking = ''; }
+        if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && ev.delta.thinking) {
+          thinking += ev.delta.thinking;
+          onEvent({ type: 'thinking_partial', text: thinking });
+        }
         // Claude vừa chuyển sang việc gì: suy nghĩ, viết câu trả lời, hay gọi một tool.
         if (ev.type === 'content_block_start') {
           const kind = ev.content_block?.type;
@@ -85,7 +93,10 @@ export async function claudeRunner({ text, cwd, resume, mode, model, signal, onE
         partial = '';
         const sub = Boolean(msg.parent_tool_use_id);
         for (const block of msg.message?.content || []) {
-          if (block.type === 'text' && block.text.trim() && !sub) {
+          if (block.type === 'thinking' && block.thinking?.trim() && !sub) {
+            thinking = '';
+            onEvent({ type: 'thinking', text: clip(block.thinking) });
+          } else if (block.type === 'text' && block.text.trim() && !sub) {
             onEvent({ type: 'assistant', text: block.text });
           } else if (block.type === 'tool_use') {
             onEvent({ type: 'tool_use', toolId: block.id, name: block.name, input: block.input, sub });
