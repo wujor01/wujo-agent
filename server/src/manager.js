@@ -496,7 +496,7 @@ export class Manager {
       this.#wake(live);
     } catch (err) {
       // Không đọc được lịch sử thì vẫn dùng bản đang có, không chặn người dùng.
-      console.error(`Không đồng bộ được lịch sử session ${meta.id}: ${err?.message || err}`);
+      console.error(t(`Không đồng bộ được lịch sử session ${meta.id}: ${err?.message || err}`, `Could not sync the history of session ${meta.id}: ${err?.message || err}`));
     }
   }
 

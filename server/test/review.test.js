@@ -13,6 +13,8 @@ import { gitInfo, gitDiff, realPath } from '../src/git.js';
 import { readLimits } from '../src/runner.js';
 import { addLink, reachableAddresses } from '../src/qr.js';
 import { compareVersions, latestVersion } from '../src/update.js';
+import { defaultLang, setDefaultLang, t as tr } from '../src/lang.js';
+import { initLang, loadConfig, setLang } from '../src/config.js';
 
 const TOKEN = 'reviewtoken1';
 let tmp, work, server, port, manager, sdkAbort;
@@ -383,7 +385,7 @@ test('git diff: thư mục viết theo tên ngắn 8.3 của Windows vẫn đư�
   await assert.rejects(gitDiff(short, '..\\web-old\\bi-mat.txt'), (e) => e.status === 400);
 });
 
-test('thông báo lỗi theo ngôn ngữ của app: Accept-Language en → tiếng Anh, còn lại tiếng Việt', async () => {
+test('thông báo lỗi theo ngôn ngữ của app: Accept-Language en/vi → đúng ngôn ngữ đó, còn lại theo mặc định của server', async () => {
   const get = async (lang) => {
     const res = await fetch(`http://127.0.0.1:${port}/api/sessions/khong-co`, {
       headers: { Authorization: `Bearer ${TOKEN}`, ...(lang ? { 'Accept-Language': lang } : {}) },
@@ -393,7 +395,17 @@ test('thông báo lỗi theo ngôn ngữ của app: Accept-Language en → tiế
   assert.equal(await get('en'), 'No session khong-co.');
   assert.equal(await get('en-US,en;q=0.9,vi;q=0.8'), 'No session khong-co.');
   assert.equal(await get('vi'), 'Không có session khong-co.');
-  assert.equal(await get(undefined), 'Không có session khong-co.');
+  // không nói rõ ngôn ngữ, hoặc ngôn ngữ khác: theo mặc định của server (tiếng Anh nếu chưa chọn)
+  assert.equal(await get(undefined), 'No session khong-co.');
+  assert.equal(await get('fr-FR'), 'No session khong-co.');
+  setDefaultLang('vi');
+  try {
+    assert.equal(await get(undefined), 'Không có session khong-co.');
+    assert.equal(await get('fr-FR'), 'Không có session khong-co.');
+    assert.equal(await get('en'), 'No session khong-co.');
+  } finally {
+    setDefaultLang('en');
+  }
   // hai request khác ngôn ngữ chạy xen kẽ không lẫn sang nhau
   const mixed = await Promise.all(['en', 'vi', 'en', 'vi', 'en'].map(get));
   assert.deepEqual(mixed, ['No session khong-co.', 'Không có session khong-co.', 'No session khong-co.', 'Không có session khong-co.', 'No session khong-co.']);
@@ -479,4 +491,50 @@ test('/api/info báo phiên bản server và bản mới nhất cho app', async 
   }
   // server không được cấu hình nguồn hỏi bản mới vẫn trả info bình thường
   assert.equal((await call('GET', '/api/info')).body.latest, null);
+});
+
+test('ngôn ngữ mặc định: tiếng Anh khi chưa chọn; `wa lang` ghi vào cấu hình; WA_LANG thắng cấu hình', () => {
+  const dir = path.join(tmp, 'cfg-lang');
+  try {
+    assert.equal(initLang(dir), 'en', 'chưa có cấu hình: tiếng Anh');
+    assert.equal(fs.existsSync(dir), false, 'chỉ đọc ngôn ngữ thì không tạo thư mục dữ liệu');
+    assert.equal(loadConfig(dir).lang, 'en');
+    const token = loadConfig(dir).token;
+
+    assert.equal(setLang('VI', dir), 'vi');
+    assert.equal(loadConfig(dir).lang, 'vi');
+    assert.equal(loadConfig(dir).token, token, 'đổi ngôn ngữ không đụng tới token');
+    assert.equal(tr('xin chào', 'hello'), 'xin chào');
+    setDefaultLang('en');
+    assert.equal(initLang(dir), 'vi', 'lần chạy sau đọc lại từ cấu hình');
+    assert.throws(() => setLang('fr', dir), /vi.*en/);
+    assert.equal(loadConfig(dir).lang, 'vi', 'giá trị sai không ghi đè lựa chọn cũ');
+
+    process.env.WA_LANG = 'en';
+    assert.equal(initLang(dir), 'en');
+    assert.equal(loadConfig(dir).lang, 'en');
+    assert.equal(tr('xin chào', 'hello'), 'hello');
+  } finally {
+    delete process.env.WA_LANG;
+    setDefaultLang('en');
+  }
+  assert.equal(defaultLang(), 'en');
+});
+
+test('chọn ngôn ngữ lúc cài: postinstall ghi --wa-lang / WA_LANG vào cấu hình, không chọn thì giữ nguyên', () => {
+  const dir = path.join(tmp, 'cfg-install');
+  const script = path.resolve(import.meta.dirname, '../bin/postinstall.js');
+  const run = (env) => execFileSync(process.execPath, [script], {
+    env: { ...process.env, WA_LANG: '', npm_config_wa_lang: '', CS_DATA_DIR: dir, ...env }, encoding: 'utf8',
+  });
+  run({});
+  assert.equal(fs.existsSync(dir), false, 'không chọn ngôn ngữ thì không tạo gì');
+  assert.match(run({ npm_config_wa_lang: 'vi' }), /Tiếng Việt/);
+  assert.equal(loadConfig(dir).lang, 'vi');
+  run({});
+  assert.equal(loadConfig(dir).lang, 'vi', 'cài lại (wa update) giữ lựa chọn cũ');
+  assert.match(run({ WA_LANG: 'en' }), /English/);
+  assert.equal(loadConfig(dir).lang, 'en');
+  assert.match(run({ npm_config_wa_lang: 'fr' }), /unknown language/);
+  assert.equal(loadConfig(dir).lang, 'en');
 });

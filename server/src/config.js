@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { defaultLang, normLang, setDefaultLang, t } from './lang.js';
 
 export const DEFAULT_PORT = 7433;
 
@@ -28,7 +29,8 @@ export function loadConfig(dir = dataDir()) {
     try {
       cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
     } catch {
-      throw new Error(`File cấu hình hỏng: ${file}. Sửa hoặc xoá file này rồi chạy lại.`);
+      throw new Error(t(`File cấu hình hỏng: ${file}. Sửa hoặc xoá file này rồi chạy lại.`,
+        `The config file is corrupt: ${file}. Fix or delete it, then run again.`));
     }
   }
   let changed = false;
@@ -41,7 +43,38 @@ export function loadConfig(dir = dataDir()) {
     token: process.env.CS_TOKEN || cfg.token,
     port: Number(process.env.CS_PORT || cfg.port),
     host: process.env.CS_HOST || cfg.host,
+    lang: normLang(process.env.WA_LANG) || normLang(cfg.lang) || 'en',
   };
+}
+
+function writeConfig(file, cfg) {
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+/**
+ * Lấy ngôn ngữ mặc định từ file cấu hình và áp dụng cho tiến trình này. Không tạo file hay thư mục nào,
+ * nên gọi được cả ở `wa help`. File hỏng thì bỏ qua: lệnh đọc cấu hình sau đó sẽ báo lỗi rõ ràng.
+ */
+export function initLang(dir = dataDir()) {
+  let lang;
+  try { lang = JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).lang; } catch { /* chưa có cấu hình */ }
+  setDefaultLang(lang);
+  return defaultLang();
+}
+
+/** Ghi ngôn ngữ mặc định ('vi' | 'en') vào file cấu hình. Server đang chạy dùng ngôn ngữ mới từ lần chạy lại. */
+export function setLang(lang, dir = dataDir()) {
+  const value = normLang(lang);
+  if (!value) throw new Error(t('Ngôn ngữ phải là "vi" hoặc "en".', 'The language must be "vi" or "en".'));
+  loadConfig(dir);
+  const file = path.join(dir, 'config.json');
+  const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
+  cfg.lang = value;
+  writeConfig(file, cfg);
+  setDefaultLang(value);
+  return value;
 }
 
 /**
@@ -50,15 +83,14 @@ export function loadConfig(dir = dataDir()) {
  */
 export function resetToken(dir = dataDir()) {
   if (process.env.CS_TOKEN) {
-    throw new Error('Token đang lấy từ biến môi trường CS_TOKEN. Đổi biến đó rồi chạy lại server. / The token comes from the CS_TOKEN environment variable; change it and restart the server.');
+    throw new Error(t('Token đang lấy từ biến môi trường CS_TOKEN. Đổi biến đó rồi chạy lại server.',
+      'The token comes from the CS_TOKEN environment variable. Change that variable and restart the server.'));
   }
   loadConfig(dir);
   const file = path.join(dir, 'config.json');
   const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
   cfg.token = generateToken();
-  const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2));
-  fs.renameSync(tmp, file);
+  writeConfig(file, cfg);
   return cfg.token;
 }
 

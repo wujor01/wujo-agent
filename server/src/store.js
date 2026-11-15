@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { t } from './lang.js';
 
 /**
  * Lưu session và sự kiện xuống đĩa.
@@ -23,7 +24,7 @@ export class Store {
       // Giữ file hỏng lại để người dùng xem, không ghi đè mất dữ liệu.
       const backup = `${this.file}.corrupt-${Date.now()}`;
       fs.renameSync(this.file, backup);
-      console.error(`sessions.json hỏng, đã đổi tên thành ${backup}`);
+      console.error(t(`sessions.json hỏng, đã đổi tên thành ${backup}`, `sessions.json is corrupt; it was renamed to ${backup}`));
       return [];
     }
   }

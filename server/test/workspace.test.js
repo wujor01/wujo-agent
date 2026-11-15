@@ -67,8 +67,8 @@ test('workspaces: liệt kê thư mục con kèm số session, bỏ thư mục �
   assert.equal(workspaces.find((w) => w.name === 'beta').sessions, 0);
   // ngày sửa thư mục có mặt để app sắp xếp
   for (const w of workspaces) assert.ok(w.modifiedAt > 1e12 && w.modifiedAt <= Date.now() + 1000, `${w.name}: ${w.modifiedAt}`);
-  await assert.rejects(manager.workspaces(path.join(tmp, 'khong-co')), /Không đọc được/);
-  await assert.rejects(manager.workspaces(''), /Thiếu/);
+  await assert.rejects(manager.workspaces(path.join(tmp, 'khong-co')), /Could not read the folder/);
+  await assert.rejects(manager.workspaces(''), /Missing root folder/);
 });
 
 test('workspaceSessions: session Claude có sẵn hiện ra dù chưa từng mở qua hệ thống này', async () => {

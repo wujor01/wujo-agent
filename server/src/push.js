@@ -102,10 +102,10 @@ export class Push {
         this.devices = this.devices.filter((d) => !dead.has(d.token));
         this.#save();
       }
-      if (!res.ok) console.error(`Gửi thông báo đẩy thất bại: HTTP ${res.status}`);
+      if (!res.ok) console.error(t(`Gửi thông báo đẩy thất bại: HTTP ${res.status}`, `Sending the push notification failed: HTTP ${res.status}`));
       return tickets.filter((x) => x?.status === 'ok').length;
     } catch (err) {
-      console.error(`Gửi thông báo đẩy thất bại: ${err?.message || err}`);
+      console.error(t(`Gửi thông báo đẩy thất bại: ${err?.message || err}`, `Sending the push notification failed: ${err?.message || err}`));
       return 0;
     }
   }

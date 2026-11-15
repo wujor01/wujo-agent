@@ -3,15 +3,38 @@
 import readline from 'node:readline/promises';
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, resetToken } from '../src/config.js';
+import { initLang, loadConfig, resetToken, setLang } from '../src/config.js';
+import { t } from '../src/lang.js';
 
 const [cmd, ...args] = process.argv.slice(2);
 
-const HELP = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ điện thoại
+// Ngôn ngữ của CLI: WA_LANG, rồi `lang` trong config.json (đặt lúc cài hoặc bằng `wa lang`), rồi tiếng Anh.
+initLang();
+
+const HELP_EN = `wujoagent (short: wa) — control Claude Code from your phone
+
+  wa serve [--port N] [--host IP] [--no-qr]   run the server (default 0.0.0.0:7433)
+  wa version                        print the installed version and the latest one
+  wa update                         install the latest version (then run "wa serve" again)
+  wa lang [vi|en]                   print or set the language of this command and the server
+  wa token                          print the token to enter in the app
+  wa token --reset                  issue a new token; every device must add the server again
+  wa qr [tailscale|lan|IP]          print a QR code to add the server to the app by scanning
+  wa list                           list sessions
+  wa new <folder> [title]           create a session
+  wa send <id> <message...>         send a message and watch the reply
+  wa show <id>                      show the history
+  wa git <id> [fetch|pull|push]     show the repo or run a git operation
+  wa rm <id>                        remove a session
+
+<id> can be shortened to its first few characters.`;
+
+const HELP_VI = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ điện thoại
 
   wa serve [--port N] [--host IP] [--no-qr]   chạy server (mặc định 0.0.0.0:7433)
   wa version                        in phiên bản đang cài và bản mới nhất
   wa update                         cài bản mới nhất (sau đó chạy lại "wa serve")
+  wa lang [vi|en]                   xem hoặc đổi ngôn ngữ của lệnh này và của server
   wa token                          in token để nhập vào app
   wa token --reset                  đổi token mới; mọi thiết bị phải thêm lại máy chủ
   wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
@@ -35,11 +58,12 @@ async function api(method, pathname, body) {
   try {
     res = await fetch(`http://127.0.0.1:${cfg.port}/api${pathname}`, {
       method,
-      headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json', 'Accept-Language': cfg.lang },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new Error(`Không nối được server ở cổng ${cfg.port}. Chạy "wa serve" trước.`);
+    throw Object.assign(new Error(t(`Không nối được server ở cổng ${cfg.port}. Chạy "wa serve" trước.`,
+      `Could not reach the server on port ${cfg.port}. Run "wa serve" first.`)), { offline: true });
   }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -47,18 +71,20 @@ async function api(method, pathname, body) {
 }
 
 async function resolveId(prefix) {
-  if (!prefix) throw new Error('Thiếu id session. Xem: wa list');
+  if (!prefix) throw new Error(t('Thiếu id session. Xem: wa list', 'Missing session id. See: wa list'));
   const { sessions } = await api('GET', '/sessions');
   const hits = sessions.filter((s) => s.id.startsWith(prefix));
   if (hits.length === 1) return hits[0].id;
-  throw new Error(hits.length ? `"${prefix}" khớp ${hits.length} session, gõ thêm ký tự.` : `Không có session "${prefix}".`);
+  throw new Error(hits.length
+    ? t(`"${prefix}" khớp ${hits.length} session, gõ thêm ký tự.`, `"${prefix}" matches ${hits.length} sessions; type more characters.`)
+    : t(`Không có session "${prefix}".`, `No session "${prefix}".`));
 }
 
 function printEvent(e) {
   if (e.type === 'user') console.log(`\n> ${e.text}`);
   else if (e.type === 'assistant') console.log(`\n${e.text}`);
   else if (e.type === 'tool_use') console.log(`  [tool] ${e.name} ${JSON.stringify(e.input).slice(0, 160)}`);
-  else if (e.type === 'tool_result' && e.isError) console.log(`  [lỗi tool] ${e.text.slice(0, 300)}`);
+  else if (e.type === 'tool_result' && e.isError) console.log(`  [${t('lỗi tool', 'tool error')}] ${e.text.slice(0, 300)}`);
   else if (e.type === 'error' || e.type === 'stopped') console.log(`\n! ${e.text}`);
   else if (e.type === 'result' && !e.ok) console.log(`\n! ${e.text}`);
 }
@@ -71,10 +97,10 @@ async function follow(id, after) {
     v = out.v;
     if (out.pending) {
       const p = out.pending;
-      console.log(`\n? Claude xin quyền: ${p.title || p.toolName}`);
+      console.log(`\n? ${t('Claude xin quyền', 'Claude asks permission')}: ${p.title || p.toolName}`);
       console.log(`  ${JSON.stringify(p.input).slice(0, 400)}`);
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const a = (await rl.question('  [y] cho phép  [a] luôn cho phép  [n] từ chối: ')).trim().toLowerCase();
+      const a = (await rl.question(t('  [y] cho phép  [a] luôn cho phép  [n] từ chối: ', '  [y] allow  [a] always allow  [n] deny: '))).trim().toLowerCase();
       rl.close();
       const decision = a === 'y' ? 'allow' : a === 'a' ? 'allow_always' : 'deny';
       await api('POST', `/sessions/${id}/permission`, { requestId: p.requestId, decision });
@@ -95,25 +121,29 @@ async function main() {
       const { checkForUpdate } = await import('../src/update.js');
       const u = await checkForUpdate(loadConfig().dir, { force: true });
       console.log(`WujoAgent ${u.current}`);
-      if (!u.latest) console.log('Không hỏi được bản mới nhất (mất mạng hoặc GitHub giới hạn lượt hỏi).');
-      else if (u.newer) console.log(`Có bản mới ${u.latest}. Cập nhật: wa update`);
-      else console.log('Đang là bản mới nhất.');
+      if (!u.latest) console.log(t('Không hỏi được bản mới nhất (mất mạng hoặc GitHub giới hạn lượt hỏi).', 'Could not check for the latest version (offline, or GitHub rate limit).'));
+      else if (u.newer) console.log(t(`Có bản mới ${u.latest}. Cập nhật: wa update`, `Version ${u.latest} is available. Update: wa update`));
+      else console.log(t('Đang là bản mới nhất.', 'This is the latest version.'));
       return;
     }
     case 'update': {
       const { checkForUpdate, installKind, installLatest } = await import('../src/update.js');
       const u = await checkForUpdate(loadConfig().dir, { force: true });
       if (installKind() === 'source') {
-        console.log(`Bản này chạy từ mã nguồn (${u.current}${u.latest ? `, mới nhất ${u.latest}` : ''}).`);
-        console.log('Cập nhật bằng git trong thư mục mã nguồn:  git pull');
-        console.log('Rồi chạy lại "wa serve".');
+        console.log(t(`Bản này chạy từ mã nguồn (${u.current}${u.latest ? `, mới nhất ${u.latest}` : ''}).`,
+          `This copy runs from source (${u.current}${u.latest ? `, latest ${u.latest}` : ''}).`));
+        console.log(t('Cập nhật bằng git trong thư mục mã nguồn:  git pull', 'Update with git in the source folder:  git pull'));
+        console.log(t('Rồi chạy lại "wa serve".', 'Then run "wa serve" again.'));
         return;
       }
-      if (u.latest && !u.newer) return console.log(`Đang là bản mới nhất (${u.current}).`);
-      console.log(u.latest ? `Đang cài ${u.latest} (hiện tại ${u.current})…` : 'Không hỏi được số phiên bản; vẫn cài lại bản mới nhất…');
+      if (u.latest && !u.newer) return console.log(t(`Đang là bản mới nhất (${u.current}).`, `This is the latest version (${u.current}).`));
+      console.log(u.latest
+        ? t(`Đang cài ${u.latest} (hiện tại ${u.current})…`, `Installing ${u.latest} (current ${u.current})…`)
+        : t('Không hỏi được số phiên bản; vẫn cài lại bản mới nhất…', 'Could not read the version number; reinstalling the latest version anyway…'));
       const code = await installLatest();
-      if (code !== 0) throw new Error('Cài đặt thất bại. Thử chạy tay:  npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz');
-      console.log('\nĐã cài xong. Server đang chạy vẫn là bản cũ cho tới khi bạn dừng nó và chạy lại "wa serve".');
+      if (code !== 0) throw new Error(`${t('Cài đặt thất bại. Thử chạy tay:', 'The install failed. Try it by hand:')}  npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz`);
+      console.log(t('\nĐã cài xong. Server đang chạy vẫn là bản cũ cho tới khi bạn dừng nó và chạy lại "wa serve".',
+        '\nInstalled. A running server stays on the old version until you stop it and run "wa serve" again.'));
       return;
     }
     case 'token': {
@@ -123,13 +153,26 @@ async function main() {
         // Server đang chạy: nhờ nó đổi, để nó bỏ luôn các điện thoại đã đăng ký nhận thông báo.
         ({ token } = await api('POST', '/token/reset', {}));
       } catch (err) {
-        if (!/Không nối được server/.test(err.message)) throw err;
+        if (!err.offline) throw err;
         const cfg = loadConfig();
         token = resetToken(cfg.dir);
         fs.rmSync(path.join(cfg.dir, 'devices.json'), { force: true });
       }
-      console.log(`Token mới: ${token}`);
-      console.log('Token cũ hết hiệu lực ngay. Trên điện thoại, thêm lại máy chủ: chạy "wa qr" rồi quét mã.');
+      console.log(`${t('Token mới', 'New token')}: ${token}`);
+      console.log(t('Token cũ hết hiệu lực ngay. Trên điện thoại, thêm lại máy chủ: chạy "wa qr" rồi quét mã.',
+        'The old token stops working at once. On the phone, add the server again: run "wa qr" and scan the code.'));
+      return;
+    }
+    case 'lang': {
+      if (!args[0]) return console.log(loadConfig().lang);
+      const lang = setLang(args[0]);
+      if (process.env.WA_LANG && process.env.WA_LANG.toLowerCase() !== lang) {
+        console.log(t(`Đã lưu "${lang}", nhưng biến môi trường WA_LANG=${process.env.WA_LANG} đang thắng.`,
+          `Saved "${lang}", but the WA_LANG=${process.env.WA_LANG} environment variable takes precedence.`));
+        return;
+      }
+      console.log(t('Ngôn ngữ: Tiếng Việt. Server đang chạy đổi theo từ lần chạy lại "wa serve".',
+        'Language: English. A running server follows from the next "wa serve".'));
       return;
     }
     case 'qr': {
@@ -140,14 +183,14 @@ async function main() {
     }
     case 'list': {
       const { sessions } = await api('GET', '/sessions');
-      if (!sessions.length) return console.log('Chưa có session nào. Tạo: wa new <thư-mục>');
+      if (!sessions.length) return console.log(t('Chưa có session nào. Tạo: wa new <thư-mục>', 'No sessions yet. Create one: wa new <folder>'));
       for (const s of sessions) {
-        console.log(`${s.id}  ${s.status.padEnd(8)} ${s.mode.padEnd(12)} ${(s.title || '(chưa đặt tên)').padEnd(42)} ${s.cwd}`);
+        console.log(`${s.id}  ${s.status.padEnd(8)} ${s.mode.padEnd(12)} ${(s.title || t('(chưa đặt tên)', '(untitled)')).padEnd(42)} ${s.cwd}`);
       }
       return;
     }
     case 'new': {
-      if (!args[0]) throw new Error('Dùng: wa new <thư-mục> [tiêu đề]');
+      if (!args[0]) throw new Error(t('Dùng: wa new <thư-mục> [tiêu đề]', 'Usage: wa new <folder> [title]'));
       const { session } = await api('POST', '/sessions', { cwd: args[0], title: args.slice(1).join(' ') });
       console.log(session.id);
       return;
@@ -178,20 +221,20 @@ async function main() {
         return;
       }
       const g = await api('GET', `/sessions/${id}/git`);
-      if (!g.repo) return console.log(g.reason || 'Thư mục này không phải git repo.');
-      console.log(`${g.root}\nnhánh ${g.branch || '(detached)'}${g.upstream ? ` → ${g.upstream} (↑${g.ahead} ↓${g.behind})` : ' (chưa có upstream)'}`);
+      if (!g.repo) return console.log(g.reason || t('Thư mục này không phải git repo.', 'This folder is not a git repo.'));
+      console.log(`${g.root}\n${t('nhánh', 'branch')} ${g.branch || '(detached)'}${g.upstream ? ` → ${g.upstream} (↑${g.ahead} ↓${g.behind})` : t(' (chưa có upstream)', ' (no upstream)')}`);
       for (const f of g.files) console.log(`  ${f.status.padEnd(2)} ${f.path}`);
-      if (!g.files.length) console.log('  (sạch)');
+      if (!g.files.length) console.log(t('  (sạch)', '  (clean)'));
       return;
     }
     case 'rm': {
       const id = await resolveId(args[0]);
       await api('DELETE', `/sessions/${id}`);
-      console.log(`Đã xoá ${id}`);
+      console.log(t(`Đã xoá ${id}`, `Removed ${id}`));
       return;
     }
     default:
-      console.log(HELP);
+      console.log(t(HELP_VI, HELP_EN));
       if (cmd && cmd !== 'help' && cmd !== '--help') process.exitCode = 1;
   }
 }

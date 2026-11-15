@@ -1,5 +1,6 @@
 import qrcode from 'qrcode-terminal';
 import { localAddresses } from './config.js';
+import { t } from './lang.js';
 
 export const LINK_BASE = 'https://agent.wujo.dev/add';
 
@@ -36,14 +37,16 @@ export async function printQr({ host, port, token, only }) {
   if (only) addrs = addrs.filter((a) => a.address === only || a.kind.toLowerCase() === String(only).toLowerCase());
   if (!addrs.length) {
     console.log(only
-      ? `Máy này không có địa chỉ "${only}".`
-      : 'Server chỉ nghe trên máy này (127.0.0.1) nên điện thoại không nối được; không in mã QR.');
+      ? t(`Máy này không có địa chỉ "${only}".`, `This machine has no address "${only}".`)
+      : t('Server chỉ nghe trên máy này (127.0.0.1) nên điện thoại không nối được; không in mã QR.',
+        'The server only listens on this machine (127.0.0.1), so a phone cannot reach it; no QR code printed.'));
     return;
   }
   const hosts = reachableAddresses(host).map((a) => a.address);
   for (const a of addrs) {
-    console.log(`\nQuét để thêm máy chủ qua ${a.kind || 'địa chỉ'} ${a.address}:`);
+    console.log(t(`\nQuét để thêm máy chủ qua ${a.kind || 'địa chỉ'} ${a.address}:`, `\nScan to add this server over ${a.kind || 'address'} ${a.address}:`));
     console.log(await render(addLink({ host: a.address, port, token, hosts })));
   }
-  console.log('Mã QR chứa token. Ai quét được mã này thì điều khiển được Claude Code trên máy này.');
+  console.log(t('Mã QR chứa token. Ai quét được mã này thì điều khiển được Claude Code trên máy này.',
+    'The QR code contains the token. Anyone who scans it can control Claude Code on this machine.'));
 }

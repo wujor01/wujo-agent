@@ -26,11 +26,19 @@ Bản phát hành mới nhất:
 npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz
 ```
 
+Lệnh `wa` và server mặc định nói tiếng Anh. Muốn tiếng Việt thì thêm `--wa-lang=vi` lúc cài (English is the default; `--wa-lang=en` sets it explicitly):
+
+```bash
+npm install -g https://github.com/wujor01/wujo-agent/releases/latest/download/wujoagent.tgz --wa-lang=vi
+```
+
+Đổi sau khi cài: `wa lang vi` hoặc `wa lang en` (server đang chạy đổi theo từ lần chạy lại `wa serve`). Biến môi trường `WA_LANG=vi|en` thắng cả hai. `wa update` giữ nguyên ngôn ngữ đã chọn. Ngôn ngữ của app trên điện thoại chọn riêng trong app.
+
 Hoặc từ mã nguồn:
 
 ```bash
 cd server
-npm install
+npm install --wa-lang=vi
 npm link
 ```
 
@@ -42,7 +50,7 @@ Cả hai cách đều tạo lệnh `wujoagent` và tên viết tắt `wa`. Khôn
 wa serve
 ```
 
-Server in ra token và các địa chỉ để nhập vào app, ví dụ:
+Server in ra token và các địa chỉ để nhập vào app, ví dụ (khi đã chọn tiếng Việt):
 
 ```
 WujoAgent đang chạy trên 0.0.0.0:7433
@@ -118,6 +126,7 @@ ssh may-chu wa list
 | `wa serve [--port N] [--host IP]` | chạy server |
 | `wa version` | in phiên bản đang cài và bản mới nhất |
 | `wa update` | cài bản mới nhất; sau đó chạy lại `wa serve` |
+| `wa lang [vi\|en]` | xem hoặc đổi ngôn ngữ của lệnh `wa` và của server |
 | `wa token` | in token |
 | `wa token --reset` | đổi token mới; token cũ hết hiệu lực ngay, mọi thiết bị phải thêm lại máy chủ |
 | `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |

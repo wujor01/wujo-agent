@@ -2,6 +2,16 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.7] - 2026-11-15
+
+### Thay đổi
+
+- Lệnh `wa` và những gì `wa serve` in ra (trợ giúp, thông báo, lỗi) giờ mặc định là tiếng Anh thay vì tiếng Việt. Thông báo lỗi server gửi về app vẫn theo ngôn ngữ của app; request không nói rõ ngôn ngữ thì theo ngôn ngữ của server.
+
+### Thêm
+
+- Chọn ngôn ngữ của server lúc cài: thêm `--wa-lang=vi` (hoặc `en`) vào lệnh `npm install -g`. Đổi sau đó bằng `wa lang vi` / `wa lang en`, hoặc đặt biến môi trường `WA_LANG`. `wa update` giữ nguyên lựa chọn đã có.
+
 ## [1.0.6] - 2026-11-15
 
 ### Thay đổi

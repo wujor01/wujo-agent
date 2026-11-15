@@ -2,6 +2,16 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.7] - 2026-11-15
+
+### Changed
+
+- The `wa` command and everything `wa serve` prints (help, notices, errors) now default to English instead of Vietnamese. Error messages the server sends to the app still follow the app's language; a request that names no language gets the server's language.
+
+### Added
+
+- Choose the server's language at install time: add `--wa-lang=vi` (or `en`) to the `npm install -g` command. Change it later with `wa lang vi` / `wa lang en`, or set the `WA_LANG` environment variable. `wa update` keeps the existing choice.
+
 ## [1.0.6] - 2026-11-15
 
 ### Changed

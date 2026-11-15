@@ -89,7 +89,7 @@ test('health không cần token; mọi API khác cần', async () => {
 test('tạo session: thư mục không tồn tại → 400 rõ ràng', async () => {
   const r = await call('POST', '/sessions', { cwd: path.join(tmp, 'khong-co') });
   assert.equal(r.status, 400);
-  assert.match(r.body.error, /không tồn tại/);
+  assert.match(r.body.error, /does not exist/);
   assert.equal((await call('POST', '/sessions', {})).status, 400);
   assert.equal((await call('POST', '/sessions', { cwd: work, mode: 'bypassPermissions' })).status, 400);
 });
