@@ -2,6 +2,12 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.9] - 2026-11-18
+
+### Added
+
+- The `wa startup on` command: the machine runs `wa serve` whenever you sign in, with no terminal to open. Add `--code [folder]` to start VS Code for the web as well. `wa startup off` removes it, `wa startup` shows the state. It only uses your own account's start-up mechanism (the Startup folder on Windows, a LaunchAgent on macOS, autostart on Linux) and needs no administrator rights.
+
 ## [1.0.8] - 2026-11-18
 
 ### Added

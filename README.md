@@ -68,6 +68,17 @@ New-NetFirewallRule -DisplayName "claude-sessions" -Direction Inbound -Protocol 
 
 To listen on Tailscale only: `wa serve --host 100.64.0.10`.
 
+To have the server start by itself whenever you sign in to the computer:
+
+```bash
+wa startup on
+```
+
+- `wa startup on --code [folder]` also starts VS Code for the web (run `wa code` by hand once first, so its license question has been answered).
+- `wa startup` shows whether it is on; `wa startup off` removes it. Neither starts or stops anything that is running now.
+- It uses your own account's start-up mechanism, with no administrator rights: a script in the Startup folder on Windows, a LaunchAgent on macOS, an autostart entry on Linux. Output goes to `startup-serve.log` and `startup-code.log` in the data folder.
+- The server starts after you sign in, not at boot: a machine sitting at the login screen is not reachable yet.
+
 ## Use it on the phone
 
 There are three ways, from quickest to most complete:
@@ -148,6 +159,7 @@ ssh my-server wa list
 | `wa token --reset` | issue a new token; the old one stops working at once and every device must add the server again |
 | `wa qr [tailscale\|lan\|IP]` | print a QR code to add the server |
 | `wa code [folder] [--tailscale]` | run VS Code for the web with Claude Code (see below) |
+| `wa startup [on\|off] [--code [folder]]` | start the server (and VS Code for the web) when you sign in |
 | `wa list` | list the sessions opened through WujoAgent |
 | `wa new <folder> [title]` | create a session |
 | `wa send <id> <message>` | send a message, watch the reply, answer permission requests with `y` / `a` / `n` |

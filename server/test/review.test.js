@@ -15,6 +15,7 @@ import { addLink, reachableAddresses } from '../src/qr.js';
 import { compareVersions, latestVersion } from '../src/update.js';
 import { defaultLang, setDefaultLang, t as tr } from '../src/lang.js';
 import { initLang, loadConfig, setLang } from '../src/config.js';
+import { disableStartup, enableStartup, startupFiles, startupJobs, startupStatus } from '../src/startup.js';
 import { codeTokenFile, codeUrl, folderParam, hasClaudeExtension, portBusy, serveWebArgs, serverBinary, tailscaleName } from '../src/code.js';
 
 const TOKEN = 'reviewtoken1';
@@ -581,4 +582,52 @@ test('wa code: tham số serve-web chỉ nghe trên máy, giấy phép chỉ ch�
   const freePort = free.address().port;
   await new Promise((r) => free.close(r));
   assert.equal(await portBusy(freePort), false);
+});
+
+test('wa startup: tạo đúng file tự khởi động cho từng hệ điều hành, bật / tắt / xem trạng thái', () => {
+  assert.deepEqual(startupJobs().map((j) => j.args), [['serve', '--no-qr']]);
+  assert.deepEqual(startupJobs({ code: true, folder: '/src' })[1].args, ['code', '/src', '--no-qr', '--accept-license']);
+
+  const sep = String.fromCharCode(92);
+  const w = (...parts) => parts.join(sep);
+  const winOpts = { platform: 'win32', home: w('C:', 'Users', 'Hoàng'), appData: w('C:', 'Users', 'Hoàng', 'AppData', 'Roaming'), node: w('C:', 'Program Files', 'nodejs', 'node.exe'), bin: w('C:', 'wa', 'bin', 'wujoagent.js'), dir: w('C:', 'Users', 'Hoàng', '.claude-sessions') };
+  const win = startupFiles({ ...winOpts, code: true, folder: w('E:', 'my repos') });
+  assert.deepEqual(win.map((f) => f.path.split(sep).pop()), ['startup-serve.cmd', 'startup-code.cmd', 'WujoAgent.vbs']);
+  assert.ok(win[0].content.includes(`"${winOpts.node}" "${winOpts.bin}" serve --no-qr > "${w(winOpts.dir, 'startup-serve.log')}" 2>&1`));
+  assert.ok(win[1].content.includes(`code "${w('E:', 'my repos')}" --no-qr --accept-license`), 'thư mục có dấu cách được bọc nháy');
+  assert.ok(win[2].path.endsWith(w('Start Menu', 'Programs', 'Startup', 'WujoAgent.vbs')));
+  assert.equal(win[2].encoding, 'utf16le');
+  assert.equal((win[2].content.match(/sh\.Run/g) || []).length, 2);
+  assert.ok(win[2].content.includes(', 0, False'), 'chạy ẩn, không chờ');
+  assert.equal(startupFiles(winOpts).length, 2, 'không chọn --code thì chỉ có serve');
+
+  const mac = startupFiles({ platform: 'darwin', home: '/Users/me', node: '/usr/local/bin/node', bin: '/opt/wa/bin/wujoagent.js', dir: '/Users/me/.claude-sessions', code: true, folder: '/Users/me/a&b' });
+  assert.deepEqual(mac.map((f) => f.path), ['/Users/me/Library/LaunchAgents/dev.wujo.agent.serve.plist', '/Users/me/Library/LaunchAgents/dev.wujo.agent.code.plist']);
+  assert.ok(mac[0].content.includes('<key>RunAtLoad</key><true/>'));
+  assert.ok(mac[1].content.includes('<string>/Users/me/a&amp;b</string>'), 'ký tự đặc biệt của XML được thoát');
+
+  const linux = startupFiles({ platform: 'linux', home: '/home/me', node: '/usr/bin/node', bin: '/opt/wa/bin/wujoagent.js', dir: '/home/me/.claude-sessions' });
+  assert.equal(linux.length, 1);
+  assert.ok(linux[0].path.endsWith('/autostart/wujoagent-serve.desktop'));
+  assert.ok(linux[0].content.includes("'/usr/bin/node' '/opt/wa/bin/wujoagent.js' 'serve' '--no-qr'"));
+
+  // Ghi thật vào thư mục tạm (theo hệ điều hành đang chạy kiểm thử).
+  const root = path.join(tmp, 'startup');
+  const real = { home: root, appData: path.join(root, 'AppData'), dir: path.join(root, 'data') };
+  const saved = process.env.XDG_CONFIG_HOME;
+  process.env.XDG_CONFIG_HOME = path.join(root, 'config');
+  try {
+    fs.mkdirSync(real.dir, { recursive: true });
+    assert.deepEqual(startupStatus(real), { on: false, code: false, files: [] });
+    enableStartup({ ...real, code: true });
+    assert.equal(startupStatus(real).on, true);
+    assert.equal(startupStatus(real).code, true);
+    enableStartup(real);
+    assert.equal(startupStatus(real).code, false, 'bật lại không kèm --code thì phần code bị gỡ');
+    assert.equal(startupStatus(real).on, true);
+    assert.ok(disableStartup(real).length > 0);
+    assert.deepEqual(startupStatus(real), { on: false, code: false, files: [] });
+  } finally {
+    if (saved === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = saved;
+  }
 });

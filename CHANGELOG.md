@@ -2,6 +2,12 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.9] - 2026-11-18
+
+### Thêm
+
+- Lệnh `wa startup on`: máy tự chạy `wa serve` mỗi khi bạn đăng nhập, không phải mở terminal. Thêm `--code [thư-mục]` để tự chạy cả VS Code web. `wa startup off` gỡ, `wa startup` xem trạng thái. Chỉ dùng cơ chế tự khởi động của riêng tài khoản bạn (thư mục Startup trên Windows, LaunchAgent trên macOS, autostart trên Linux), không cần quyền quản trị.
+
 ## [1.0.8] - 2026-11-18
 
 ### Thêm

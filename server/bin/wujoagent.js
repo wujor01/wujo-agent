@@ -21,6 +21,7 @@ const HELP_EN = `wujoagent (short: wa) — control Claude Code from your phone
   wa token --reset                  issue a new token; every device must add the server again
   wa qr [tailscale|lan|IP]          print a QR code to add the server to the app by scanning
   wa code [folder] [--tailscale]    run VS Code for the web with Claude Code (see README)
+  wa startup [on|off] [--code [folder]]   start the server (and VS Code for the web) when you sign in
   wa list                           list sessions
   wa new <folder> [title]           create a session
   wa send <id> <message...>         send a message and watch the reply
@@ -40,6 +41,7 @@ const HELP_VI = `wujoagent (viết tắt: wa) — điều khiển Claude Code t�
   wa token --reset                  đổi token mới; mọi thiết bị phải thêm lại máy chủ
   wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
   wa code [thư-mục] [--tailscale]   chạy VS Code bản web kèm Claude Code (xem README)
+  wa startup [on|off] [--code [thư-mục]]   tự chạy server (và VS Code web) khi bạn đăng nhập vào máy
   wa list                           liệt kê session
   wa new <thư-mục> [tiêu đề]        tạo session
   wa send <id> <tin nhắn...>        gửi tin và xem câu trả lời
@@ -190,6 +192,45 @@ async function main() {
         tailscale: args.includes('--tailscale'),
         qr: !args.includes('--no-qr'),
       });
+      return;
+    }
+    case 'startup': {
+      const { enableStartup, disableStartup, startupStatus } = await import('../src/startup.js');
+      const base = { dir: loadConfig().dir };
+      const show = () => {
+        const s = startupStatus(base);
+        console.log(!s.on
+          ? t('Tự khởi động: tắt. Bật: wa startup on   (kèm VS Code web: wa startup on --code [thư-mục])',
+            'Start at sign-in: off. Turn on: wa startup on   (with VS Code for the web: wa startup on --code [folder])')
+          : s.code
+            ? t('Tự khởi động: bật, gồm "wa serve" và "wa code". Tắt: wa startup off', 'Start at sign-in: on, running "wa serve" and "wa code". Turn off: wa startup off')
+            : t('Tự khởi động: bật, chạy "wa serve". Tắt: wa startup off', 'Start at sign-in: on, running "wa serve". Turn off: wa startup off'));
+        for (const f of s.files) console.log(`  ${f}`);
+      };
+      if (!args[0]) return show();
+      if (args[0] === 'off') {
+        disableStartup(base);
+        console.log(t('Đã tắt tự khởi động. Các tiến trình đang chạy không bị dừng.', 'Start at sign-in is off. Anything already running is left running.'));
+        return;
+      }
+      if (args[0] !== 'on') throw new Error(t('Dùng: wa startup [on|off] [--code [thư-mục]]', 'Usage: wa startup [on|off] [--code [folder]]'));
+      const i = args.indexOf('--code');
+      const code = i >= 0;
+      const next = code ? args[i + 1] : undefined;
+      const folder = next && !next.startsWith('--') ? path.resolve(next) : undefined;
+      if (folder && !fs.existsSync(folder)) throw new Error(t(`Thư mục không tồn tại: ${folder}`, `Folder does not exist: ${folder}`));
+      if (code) {
+        const { serverBinary } = await import('../src/code.js');
+        if (!serverBinary()) {
+          throw new Error(t('Chạy "wa code" một lần trước: lần đầu VS Code hỏi điều khoản giấy phép, lúc tự khởi động không có ai trả lời.',
+            'Run "wa code" once first: on its first run VS Code asks about its license terms, and nobody is there to answer at sign-in.'));
+        }
+      }
+      enableStartup({ ...base, code, folder });
+      console.log(t('Đã bật. Từ lần đăng nhập sau, máy tự chạy:', 'Turned on. From your next sign-in this machine starts:'));
+      show();
+      console.log(t(`Nhật ký nằm trong ${base.dir} (startup-*.log). Lệnh này không chạy gì ngay bây giờ.`,
+        `Logs are in ${base.dir} (startup-*.log). This command starts nothing right now.`));
       return;
     }
     case 'qr': {

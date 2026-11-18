@@ -68,6 +68,17 @@ New-NetFirewallRule -DisplayName "claude-sessions" -Direction Inbound -Protocol 
 
 Chỉ muốn nghe trên Tailscale: `wa serve --host 100.64.0.10`.
 
+Để server tự chạy mỗi khi bạn đăng nhập vào máy tính:
+
+```bash
+wa startup on
+```
+
+- `wa startup on --code [thư-mục]` tự chạy cả VS Code web (chạy tay `wa code` một lần trước, để câu hỏi giấy phép của nó đã được trả lời).
+- `wa startup` cho biết đang bật hay tắt; `wa startup off` gỡ. Cả hai không chạy hay dừng thứ gì đang chạy lúc này.
+- Lệnh dùng cơ chế tự khởi động của riêng tài khoản bạn, không cần quyền quản trị: một script trong thư mục Startup trên Windows, LaunchAgent trên macOS, mục autostart trên Linux. Kết quả in ra nằm ở `startup-serve.log` và `startup-code.log` trong thư mục dữ liệu.
+- Server chạy sau khi bạn đăng nhập, không phải ngay khi máy bật: máy còn nằm ở màn hình đăng nhập thì chưa nối tới được.
+
 ## Dùng trên điện thoại
 
 Có ba cách, từ nhanh tới đầy đủ:
@@ -148,6 +159,7 @@ ssh may-chu wa list
 | `wa token --reset` | đổi token mới; token cũ hết hiệu lực ngay, mọi thiết bị phải thêm lại máy chủ |
 | `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
 | `wa code [thư-mục] [--tailscale]` | chạy VS Code bản web kèm Claude Code (xem bên dưới) |
+| `wa startup [on\|off] [--code [thư-mục]]` | tự chạy server (và VS Code web) khi bạn đăng nhập vào máy |
 | `wa list` | liệt kê session đã mở qua hệ thống |
 | `wa new <thư-mục> [tiêu đề]` | tạo session |
 | `wa send <id> <tin nhắn>` | gửi tin, xem trả lời, duyệt quyền bằng `y` / `a` / `n` |
