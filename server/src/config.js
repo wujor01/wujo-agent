@@ -47,7 +47,11 @@ export function loadConfig(dir = dataDir()) {
   };
 }
 
+// Tăng mỗi lần tiến trình này ghi cấu hình: tokenSource thấy ngay, không phụ thuộc độ mịn của mtime.
+let writes = 0;
+
 function writeConfig(file, cfg) {
+  writes++;
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2));
   fs.renameSync(tmp, file);
@@ -102,11 +106,13 @@ export function tokenSource(dir = dataDir()) {
   const file = path.join(dir, 'config.json');
   let token = loadConfig(dir).token;
   let seen = mtime(file);
+  let seenWrites = writes;
   return () => {
     if (process.env.CS_TOKEN) return process.env.CS_TOKEN;
     const now = mtime(file);
-    if (now !== seen) {
+    if (now !== seen || writes !== seenWrites) {
       seen = now;
+      seenWrites = writes;
       try { token = loadConfig(dir).token; } catch { /* file đang ghi dở hoặc hỏng: giữ token cũ */ }
     }
     return token;

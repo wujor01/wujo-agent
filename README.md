@@ -114,6 +114,22 @@ In the app: **Add server** (scan the QR code, or enter IP, port and token) → *
 - Send a message while Claude is working: it goes straight into the running turn and Claude reads it at its next step, without waiting for the turn to end.
 - Long-press a session to remove it from the app; Claude's history on the server is not deleted.
 
+## VS Code in the browser
+
+When a phone-sized chat is not enough (a tablet, or another laptop), `wa code` runs VS Code for the web on the computer, with the Claude Code extension, so the browser shows the same Claude sessions as VS Code on that machine. VS Code must already be installed there, with its `code` command on the PATH.
+
+```bash
+wa code E:\work\repos\my-project
+```
+
+- The first run downloads VS Code Server and asks you to accept its license terms in the terminal; `--accept-license` answers yes for you. `wa code` then installs the Claude Code extension for the web build.
+- VS Code for the web listens on `127.0.0.1:8765` only and needs its own token, which is in the address that `wa code` prints.
+- From another device, go through Tailscale with HTTPS: run `wa code --tailscale` (it runs `tailscale serve --bg --https=8443 http://127.0.0.1:8765`), then open the `https://<machine>.<tailnet>.ts.net:8443/...` address it prints, or scan its QR code. This is tailnet-only, not the internet; turn it off with `tailscale serve --https=8443 off`. A plain `http://<IP>` address does not work, because the Claude panel only runs on HTTPS or localhost. Your tailnet needs MagicDNS and HTTPS certificates enabled.
+- A folder opened for the first time is in Restricted Mode: click the badge at the bottom left and choose Trust, then click the Claude icon in the left bar to see the sessions.
+- Options: `--port N`, `--https-port N`, `--no-qr`.
+
+Whoever has that address and token gets a terminal and every file on the machine with your permissions, not just a chat with per-tool approval as in the app. Keep it inside your tailnet and never use `tailscale funnel` for it.
+
 ## Use it over SSH
 
 `wa` talks to the server running on that same machine, so it works once you SSH in:
@@ -131,6 +147,7 @@ ssh my-server wa list
 | `wa token` | print the token |
 | `wa token --reset` | issue a new token; the old one stops working at once and every device must add the server again |
 | `wa qr [tailscale\|lan\|IP]` | print a QR code to add the server |
+| `wa code [folder] [--tailscale]` | run VS Code for the web with Claude Code (see below) |
 | `wa list` | list the sessions opened through WujoAgent |
 | `wa new <folder> [title]` | create a session |
 | `wa send <id> <message>` | send a message, watch the reply, answer permission requests with `y` / `a` / `n` |

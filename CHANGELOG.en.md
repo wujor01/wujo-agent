@@ -2,6 +2,16 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.8] - 2026-11-18
+
+### Added
+
+- The `wa code [folder]` command: runs VS Code for the web on your computer with the Claude Code extension, so you can open the same Claude sessions as in VS Code from another machine's browser. VS Code for the web listens only on the computer itself and has its own token; other devices come in through `tailscale serve` (HTTPS, inside your tailnet only, not on the internet), turned on with `wa code --tailscale`. VS Code must already be installed. Note: whoever can reach this address gets a terminal and the files on the machine, not just a chat box.
+
+### Fixed
+
+- Changing the token twice within the same millisecond no longer leaves the server on the old token.
+
 ## [1.0.7] - 2026-11-15
 
 ### Changed

@@ -15,6 +15,7 @@ import { addLink, reachableAddresses } from '../src/qr.js';
 import { compareVersions, latestVersion } from '../src/update.js';
 import { defaultLang, setDefaultLang, t as tr } from '../src/lang.js';
 import { initLang, loadConfig, setLang } from '../src/config.js';
+import { codeTokenFile, codeUrl, folderParam, hasClaudeExtension, portBusy, serveWebArgs, serverBinary, tailscaleName } from '../src/code.js';
 
 const TOKEN = 'reviewtoken1';
 let tmp, work, server, port, manager, sdkAbort;
@@ -537,4 +538,47 @@ test('chọn ngôn ngữ lúc cài: postinstall ghi --wa-lang / WA_LANG vào c�
   assert.equal(loadConfig(dir).lang, 'en');
   assert.match(run({ npm_config_wa_lang: 'fr' }), /unknown language/);
   assert.equal(loadConfig(dir).lang, 'en');
+});
+
+test('wa code: tham số serve-web chỉ nghe trên máy, giấy phép chỉ chấp nhận khi được yêu cầu, URL đúng dạng VS Code web', async () => {
+  const dir = path.join(tmp, 'code-data');
+  fs.mkdirSync(dir, { recursive: true });
+  const first = codeTokenFile(dir);
+  assert.match(first.token, /^[a-z2-9]{24}$/);
+  assert.equal(codeTokenFile(dir).token, first.token, 'token giữ nguyên giữa các lần chạy');
+  fs.writeFileSync(first.file, 'ngắn');
+  assert.notEqual(codeTokenFile(dir).token, 'ngắn', 'token hỏng hoặc quá ngắn thì tạo lại');
+
+  const args = serveWebArgs({ port: 8765, tokenFile: first.file, folder: 'E:/work', acceptLicense: false });
+  assert.deepEqual(args.slice(0, 5), ['serve-web', '--host', '127.0.0.1', '--port', '8765']);
+  assert.ok(!args.includes('--accept-server-license-terms'));
+  assert.ok(!args.includes('--without-connection-token'));
+  assert.ok(serveWebArgs({ port: 1, tokenFile: 'x', acceptLicense: true }).includes('--accept-server-license-terms'));
+
+  assert.equal(folderParam(['E:', 'work', 'repos'].join(String.fromCharCode(92))), '/e:/work/repos');
+  assert.equal(folderParam('/home/me/src'), '/home/me/src');
+  assert.equal(codeUrl('https://may.tail.ts.net:8443', 'abc', ['E:', 'work', 'my repo'].join(String.fromCharCode(92))), 'https://may.tail.ts.net:8443/?tkn=abc&folder=/e:/work/my%20repo');
+  assert.equal(codeUrl('http://127.0.0.1:8765', 'abc'), 'http://127.0.0.1:8765/?tkn=abc');
+
+  assert.equal(tailscaleName('{"CertDomains":["may.tail.ts.net"]}'), 'may.tail.ts.net');
+  assert.equal(tailscaleName('{"CertDomains":null}'), null);
+  assert.equal(tailscaleName('không phải json'), null);
+
+  const home = path.join(tmp, 'code-home');
+  assert.equal(hasClaudeExtension(path.join(home, '.vscode-server', 'extensions')), false);
+  assert.equal(serverBinary(home, ''), null);
+  fs.mkdirSync(path.join(home, '.vscode-server', 'extensions', 'anthropic.claude-code-2.1.0-win32-x64'), { recursive: true });
+  assert.equal(hasClaudeExtension(path.join(home, '.vscode-server', 'extensions')), true);
+  const bin = path.join(home, '.vscode', 'cli', 'serve-web', 'abc123', 'bin');
+  fs.mkdirSync(bin, { recursive: true });
+  const exe = path.join(bin, process.platform === 'win32' ? 'code-server.cmd' : 'code-server');
+  fs.writeFileSync(exe, '');
+  assert.equal(serverBinary(home, ''), exe);
+
+  assert.equal(await portBusy(port), true, 'cổng server kiểm thử đang nghe');
+  const free = net.createServer().listen(0, '127.0.0.1');
+  await new Promise((r) => free.once('listening', r));
+  const freePort = free.address().port;
+  await new Promise((r) => free.close(r));
+  assert.equal(await portBusy(freePort), false);
 });

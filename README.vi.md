@@ -114,6 +114,22 @@ Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → 
 - Gửi tin trong lúc Claude đang làm việc: tin vào thẳng lượt đang chạy và Claude đọc nó ở bước kế tiếp, không phải chờ hết lượt.
 - Giữ lâu vào một session để gỡ khỏi app; lịch sử của Claude trên máy chủ không bị xoá.
 
+## VS Code trong trình duyệt
+
+Khi khung chat cỡ điện thoại không đủ (dùng máy tính bảng, hoặc một laptop khác), `wa code` chạy VS Code bản web trên máy tính, kèm extension Claude Code, nên trình duyệt hiện đúng các session Claude như VS Code trên máy đó. Máy tính phải cài sẵn VS Code và có lệnh `code` trong PATH.
+
+```bash
+wa code E:\work\repos\du-an
+```
+
+- Lần chạy đầu tải VS Code Server và hỏi bạn có chấp nhận điều khoản giấy phép không ngay trong terminal; `--accept-license` trả lời đồng ý thay bạn. Sau đó `wa code` cài extension Claude Code cho bản web.
+- VS Code web chỉ nghe trên `127.0.0.1:8765` và cần token riêng, có sẵn trong địa chỉ mà `wa code` in ra.
+- Từ thiết bị khác thì đi qua Tailscale với HTTPS: chạy `wa code --tailscale` (nó chạy `tailscale serve --bg --https=8443 http://127.0.0.1:8765`), rồi mở địa chỉ `https://<máy>.<tailnet>.ts.net:8443/...` được in ra, hoặc quét mã QR. Đường này chỉ trong tailnet, không ra internet; tắt bằng `tailscale serve --https=8443 off`. Địa chỉ `http://<IP>` thường không dùng được, vì bảng Claude chỉ chạy trên HTTPS hoặc localhost. Tailnet phải bật MagicDNS và HTTPS certificates.
+- Thư mục mở lần đầu ở Restricted Mode: bấm huy hiệu ở góc dưới trái rồi chọn Trust, sau đó bấm biểu tượng Claude ở cột bên trái để thấy các session.
+- Tuỳ chọn: `--port N`, `--https-port N`, `--no-qr`.
+
+Ai có địa chỉ kèm token đó thì có terminal và mọi file trên máy với quyền của bạn, chứ không chỉ một khung chat có hỏi quyền từng tool như trong app. Chỉ dùng trong tailnet và đừng bao giờ dùng `tailscale funnel` cho nó.
+
 ## Dùng qua SSH
 
 `wa` nói chuyện với server đang chạy trên chính máy đó, nên SSH vào là dùng được:
@@ -131,6 +147,7 @@ ssh may-chu wa list
 | `wa token` | in token |
 | `wa token --reset` | đổi token mới; token cũ hết hiệu lực ngay, mọi thiết bị phải thêm lại máy chủ |
 | `wa qr [tailscale\|lan\|IP]` | in mã QR để thêm máy chủ |
+| `wa code [thư-mục] [--tailscale]` | chạy VS Code bản web kèm Claude Code (xem bên dưới) |
 | `wa list` | liệt kê session đã mở qua hệ thống |
 | `wa new <thư-mục> [tiêu đề]` | tạo session |
 | `wa send <id> <tin nhắn>` | gửi tin, xem trả lời, duyệt quyền bằng `y` / `a` / `n` |

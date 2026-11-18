@@ -20,6 +20,7 @@ const HELP_EN = `wujoagent (short: wa) — control Claude Code from your phone
   wa token                          print the token to enter in the app
   wa token --reset                  issue a new token; every device must add the server again
   wa qr [tailscale|lan|IP]          print a QR code to add the server to the app by scanning
+  wa code [folder] [--tailscale]    run VS Code for the web with Claude Code (see README)
   wa list                           list sessions
   wa new <folder> [title]           create a session
   wa send <id> <message...>         send a message and watch the reply
@@ -38,6 +39,7 @@ const HELP_VI = `wujoagent (viết tắt: wa) — điều khiển Claude Code t�
   wa token                          in token để nhập vào app
   wa token --reset                  đổi token mới; mọi thiết bị phải thêm lại máy chủ
   wa qr [tailscale|lan|IP]          in mã QR để thêm máy chủ vào app bằng cách quét
+  wa code [thư-mục] [--tailscale]   chạy VS Code bản web kèm Claude Code (xem README)
   wa list                           liệt kê session
   wa new <thư-mục> [tiêu đề]        tạo session
   wa send <id> <tin nhắn...>        gửi tin và xem câu trả lời
@@ -173,6 +175,21 @@ async function main() {
       }
       console.log(t('Ngôn ngữ: Tiếng Việt. Server đang chạy đổi theo từ lần chạy lại "wa serve".',
         'Language: English. A running server follows from the next "wa serve".'));
+      return;
+    }
+    case 'code': {
+      const { startCode, DEFAULT_CODE_PORT, DEFAULT_HTTPS_PORT } = await import('../src/code.js');
+      const valued = new Set(['--port', '--https-port']);
+      const folder = args.find((a, i) => !a.startsWith('--') && !valued.has(args[i - 1]));
+      await startCode({
+        dir: loadConfig().dir,
+        port: flag('port') ? Number(flag('port')) : DEFAULT_CODE_PORT,
+        httpsPort: flag('https-port') ? Number(flag('https-port')) : DEFAULT_HTTPS_PORT,
+        folder: folder ? path.resolve(folder) : undefined,
+        acceptLicense: args.includes('--accept-license'),
+        tailscale: args.includes('--tailscale'),
+        qr: !args.includes('--no-qr'),
+      });
       return;
     }
     case 'qr': {

@@ -2,6 +2,16 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.8] - 2026-11-18
+
+### Thêm
+
+- Lệnh `wa code [thư-mục]`: chạy VS Code bản web trên máy tính kèm extension Claude Code, để mở đúng các session Claude như trên VS Code từ trình duyệt của máy khác. VS Code web chỉ nghe trên chính máy tính và có token riêng; thiết bị khác vào qua `tailscale serve` (HTTPS, chỉ trong tailnet, không ra internet), bật bằng `wa code --tailscale`. Cần đã cài VS Code. Lưu ý: ai vào được địa chỉ này thì có cả terminal và file trên máy, không chỉ khung chat.
+
+### Sửa
+
+- Đổi token hai lần liên tiếp trong cùng một phần nghìn giây không còn khiến server giữ token cũ.
+
 ## [1.0.7] - 2026-11-15
 
 ### Thay đổi
