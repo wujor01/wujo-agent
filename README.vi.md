@@ -79,6 +79,14 @@ wa startup on
 - Lệnh dùng cơ chế tự khởi động của riêng tài khoản bạn, không cần quyền quản trị: một script trong thư mục Startup trên Windows, LaunchAgent trên macOS, mục autostart trên Linux. Kết quả in ra nằm ở `startup-serve.log` và `startup-code.log` trong thư mục dữ liệu.
 - Server chạy sau khi bạn đăng nhập, không phải ngay khi máy bật: máy còn nằm ở màn hình đăng nhập thì chưa nối tới được.
 
+Nếu server hoặc VS Code web không còn trả lời, hoặc `wa code` báo cổng đang bị dùng, hãy chạy lại:
+
+```bash
+wa restart
+```
+
+Lệnh dừng thứ đang chạy (server, VS Code web, hoặc cả hai), kể cả tiến trình bị treo còn giữ cổng, rồi chạy lại ở nền; kết quả in ra nằm ở `startup-serve.log` / `startup-code.log`. `wa restart serve` và `wa restart code` chỉ chạy lại một thứ. Lượt chat, terminal và lượt Claude đang chạy dở sẽ bị ngắt. Tiến trình không phải của WujoAgent thì không bao giờ bị dừng: lệnh chỉ báo lại.
+
 ## Dùng trên điện thoại
 
 Có ba cách, từ nhanh tới đầy đủ:
@@ -152,6 +160,7 @@ ssh may-chu wa list
 | Lệnh | Việc |
 |---|---|
 | `wa serve [--port N] [--host IP]` | chạy server |
+| `wa restart [serve\|code]` | dừng thứ đang chạy (kể cả bị treo) rồi chạy lại ở nền |
 | `wa version` | in phiên bản đang cài và bản mới nhất |
 | `wa update` | cài bản mới nhất; sau đó chạy lại `wa serve` |
 | `wa lang [vi\|en]` | xem hoặc đổi ngôn ngữ của lệnh `wa` và của server |

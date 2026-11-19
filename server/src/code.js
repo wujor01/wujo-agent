@@ -129,8 +129,8 @@ export async function startCode({ dir, port = DEFAULT_CODE_PORT, folder, acceptL
     throw new Error(t(`Thư mục không tồn tại: ${folder}`, `Folder does not exist: ${folder}`));
   }
   if (await portBusy(port)) {
-    throw new Error(t(`Cổng ${port} đang bị dùng. Có thể "wa code" đã chạy rồi; nếu không, đổi cổng: wa code --port <số>`,
-      `Port ${port} is in use. "wa code" may already be running; otherwise pick another port: wa code --port <number>`));
+    throw new Error(t(`Cổng ${port} đang bị dùng. Có thể "wa code" đã chạy rồi (chạy lại: wa restart code); nếu không, đổi cổng: wa code --port <số>`,
+      `Port ${port} is in use. "wa code" may already be running (restart it: wa restart code); otherwise pick another port: wa code --port <number>`));
   }
   const { file: tokenFile, token } = codeTokenFile(dir);
 
@@ -167,6 +167,11 @@ export async function startCode({ dir, port = DEFAULT_CODE_PORT, folder, acceptL
       : t('Không tự cài được. Mở VS Code web, vào Extensions và cài "Claude Code" (Anthropic).',
         'Could not install it automatically. Open VS Code for the web, go to Extensions and install "Claude Code" (Anthropic).'));
   }
+
+  // Nhớ lại cách chạy lần này để `wa restart` chạy lại đúng như cũ.
+  try {
+    fs.writeFileSync(path.join(dir, 'code.json'), JSON.stringify({ port, folder, httpsPort: httpsPort === DEFAULT_HTTPS_PORT ? undefined : httpsPort }, null, 2));
+  } catch { /* không ghi được cũng không sao */ }
 
   const local = codeUrl(`http://127.0.0.1:${port}`, token, folder);
   console.log(t(`\nVS Code web đang chạy. Trên máy này:\n  ${local}`, `\nVS Code for the web is running. On this machine:\n  ${local}`));

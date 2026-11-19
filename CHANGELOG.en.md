@@ -2,6 +2,16 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.10] - 2026-11-19
+
+### Added
+
+- The `wa restart` command: stops the running WujoAgent server and VS Code for the web, even a stuck one that still holds its port, and starts them again in the background. `wa restart serve` or `wa restart code` restarts just one. VS Code for the web comes back with the folder and port of the last `wa code`. The command does not stop a foreign process that holds the port, and does not change the Tailscale configuration.
+
+### Changed
+
+- When `wa code` reports that the port is in use, the message now names the fix: `wa restart code`.
+
 ## [1.0.9] - 2026-11-18
 
 ### Added

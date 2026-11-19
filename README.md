@@ -79,6 +79,14 @@ wa startup on
 - It uses your own account's start-up mechanism, with no administrator rights: a script in the Startup folder on Windows, a LaunchAgent on macOS, an autostart entry on Linux. Output goes to `startup-serve.log` and `startup-code.log` in the data folder.
 - The server starts after you sign in, not at boot: a machine sitting at the login screen is not reachable yet.
 
+If the server or VS Code for the web stops answering, or `wa code` says its port is in use, restart them:
+
+```bash
+wa restart
+```
+
+It stops what is running (the server, VS Code for the web, or both), including a stuck process that still holds the port, and starts it again in the background with output in `startup-serve.log` / `startup-code.log`. `wa restart serve` and `wa restart code` restart one of them. Chat turns, terminals and Claude turns that were running are interrupted. A process that is not WujoAgent's is never stopped: the command reports it instead.
+
 ## Use it on the phone
 
 There are three ways, from quickest to most complete:
@@ -152,6 +160,7 @@ ssh my-server wa list
 | Command | What it does |
 |---|---|
 | `wa serve [--port N] [--host IP]` | run the server |
+| `wa restart [serve\|code]` | stop what is running (even if stuck) and start it again in the background |
 | `wa version` | print the installed version and the latest one |
 | `wa update` | install the latest version; then run `wa serve` again |
 | `wa lang [vi\|en]` | print or set the language of the `wa` command and the server |

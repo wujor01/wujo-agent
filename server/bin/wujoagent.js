@@ -14,6 +14,7 @@ initLang();
 const HELP_EN = `wujoagent (short: wa) — control Claude Code from your phone
 
   wa serve [--port N] [--host IP] [--no-qr]   run the server (default 0.0.0.0:7433)
+  wa restart [serve|code]           stop what is running (even if stuck) and start it again in the background
   wa version                        print the installed version and the latest one
   wa update                         install the latest version (then run "wa serve" again)
   wa lang [vi|en]                   print or set the language of this command and the server
@@ -34,6 +35,7 @@ const HELP_EN = `wujoagent (short: wa) — control Claude Code from your phone
 const HELP_VI = `wujoagent (viết tắt: wa) — điều khiển Claude Code từ điện thoại
 
   wa serve [--port N] [--host IP] [--no-qr]   chạy server (mặc định 0.0.0.0:7433)
+  wa restart [serve|code]           dừng thứ đang chạy (kể cả bị treo) rồi chạy lại ở nền
   wa version                        in phiên bản đang cài và bản mới nhất
   wa update                         cài bản mới nhất (sau đó chạy lại "wa serve")
   wa lang [vi|en]                   xem hoặc đổi ngôn ngữ của lệnh này và của server
@@ -231,6 +233,12 @@ async function main() {
       show();
       console.log(t(`Nhật ký nằm trong ${base.dir} (startup-*.log). Lệnh này không chạy gì ngay bây giờ.`,
         `Logs are in ${base.dir} (startup-*.log). This command starts nothing right now.`));
+      return;
+    }
+    case 'restart': {
+      if (args[0] && args[0] !== 'serve' && args[0] !== 'code') throw new Error(t('Dùng: wa restart [serve|code]', 'Usage: wa restart [serve|code]'));
+      const { restart } = await import('../src/restart.js');
+      await restart({ cfg: loadConfig(), what: args[0] });
       return;
     }
     case 'qr': {

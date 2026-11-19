@@ -16,6 +16,7 @@ import { compareVersions, latestVersion } from '../src/update.js';
 import { defaultLang, setDefaultLang, t as tr } from '../src/lang.js';
 import { initLang, loadConfig, setLang } from '../src/config.js';
 import { disableStartup, enableStartup, startupFiles, startupJobs, startupStatus } from '../src/startup.js';
+import { codeArgs, isOurs, listeners, parseNetstat, readCodeOptions, stopPort } from '../src/restart.js';
 import { codeTokenFile, codeUrl, folderParam, hasClaudeExtension, portBusy, serveWebArgs, serverBinary, tailscaleName } from '../src/code.js';
 
 const TOKEN = 'reviewtoken1';
@@ -630,4 +631,36 @@ test('wa startup: tạo đúng file tự khởi động cho từng hệ điều 
   } finally {
     if (saved === undefined) delete process.env.XDG_CONFIG_HOME; else process.env.XDG_CONFIG_HOME = saved;
   }
+});
+
+test('wa restart: tìm đúng tiến trình giữ cổng, chỉ dừng thứ của mình, chạy lại wa code như lần trước', async () => {
+  const netstat = [
+    '  Proto  Local Address          Foreign Address        State           PID',
+    '  TCP    0.0.0.0:7433           0.0.0.0:0              LISTENING       4120',
+    '  TCP    127.0.0.1:8765         0.0.0.0:0              LISTENING       9988',
+    '  TCP    [::]:8765              [::]:0                 LISTENING       9988',
+    '  TCP    127.0.0.1:50123        127.0.0.1:8765         ESTABLISHED     777',
+    '  TCP    127.0.0.1:18765        0.0.0.0:0              LISTENING       55',
+  ].join('\r\n');
+  assert.deepEqual(parseNetstat(netstat, 8765), [9988], 'chỉ dòng LISTENING đúng cổng, không lặp, không nhầm cổng 18765');
+  assert.deepEqual(parseNetstat(netstat, 7433), [4120]);
+  assert.deepEqual(parseNetstat(netstat, 9999), []);
+
+  for (const name of ['node.exe', 'node', 'code-tunnel.exe', 'code', '/usr/local/bin/node', 'Code.exe']) assert.equal(isOurs(name), true, name);
+  for (const name of ['nginx', 'python.exe', 'System', '', 'node-red.exe', 'mycode.exe']) assert.equal(isOurs(name), false, name);
+
+  assert.deepEqual(codeArgs({}), ['code', '--no-qr', '--accept-license']);
+  assert.deepEqual(codeArgs({ folder: '/src', port: 9000, httpsPort: 443 }), ['code', '/src', '--port', '9000', '--https-port', '443', '--no-qr', '--accept-license']);
+  assert.ok(!codeArgs({ tailscale: true }).includes('--tailscale'), 'khởi động lại không tự đổi cấu hình Tailscale');
+  assert.deepEqual(readCodeOptions(path.join(tmp, 'khong-co')), {});
+
+  // Cổng trống: không có gì để dừng.
+  const free = net.createServer().listen(0, '127.0.0.1');
+  await new Promise((r) => free.once('listening', r));
+  const freePort = free.address().port;
+  await new Promise((r) => free.close(r));
+  assert.equal(await stopPort(freePort), 'free');
+
+  // Cổng của server kiểm thử: tìm ra đúng tiến trình này.
+  assert.ok((await listeners(port)).includes(process.pid));
 });

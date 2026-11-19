@@ -2,6 +2,16 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.10] - 2026-11-19
+
+### Thêm
+
+- Lệnh `wa restart`: dừng server WujoAgent và VS Code web đang chạy, kể cả bản bị treo còn giữ cổng, rồi chạy lại ở nền. `wa restart serve` hoặc `wa restart code` để chỉ chạy lại một thứ. VS Code web được chạy lại với đúng thư mục và cổng của lần `wa code` gần nhất. Lệnh không dừng tiến trình lạ đang giữ cổng, và không đổi cấu hình Tailscale.
+
+### Thay đổi
+
+- Khi `wa code` báo cổng đang bị dùng, thông báo chỉ luôn cách xử lý: `wa restart code`.
+
 ## [1.0.9] - 2026-11-18
 
 ### Thêm
