@@ -153,7 +153,15 @@ async function main() {
       return;
     }
     case 'token': {
-      if (!args.includes('--reset')) return console.log(loadConfig().token);
+      if (!args.includes('--reset')) {
+        console.log(loadConfig().token);
+        // Gợi ý chỉ hiện khi gõ tay (stdout là terminal), để không lẫn vào kết quả khi `wa token` được dùng trong script.
+        if (process.stdout.isTTY) {
+          console.error(t('\nToken này nhập vào APP (Thêm máy chủ → Token), hoặc quét mã bằng "wa qr".\nVS Code web dùng token RIÊNG, không nhập token này: mở đúng địa chỉ có đuôi "/?tkn=<token>" mà "wa code" in ra (hoặc "wa restart code").',
+            '\nThis token goes into the APP (Add server → Token), or scan the code from "wa qr".\nVS Code for the web uses its OWN token, not this one: open the address ending in "/?tkn=<token>" that "wa code" prints (or "wa restart code").'));
+        }
+        return;
+      }
       let token;
       try {
         // Server đang chạy: nhờ nó đổi, để nó bỏ luôn các điện thoại đã đăng ký nhận thông báo.
