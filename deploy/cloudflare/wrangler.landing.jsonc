@@ -20,7 +20,7 @@
     // Bản APK hiện hành (EAS, profile "beta"). Sau mỗi lần build: dán link https://expo.dev/artifacts/eas/....apk
     // vào đây rồi deploy trong vòng 14 ngày, khi EAS còn giữ file; sync-apk.mjs chép nó sang bucket DOWNLOADS
     // và /download/android phục vụ từ đó về sau. Để trống: nút tải Android báo "chưa phát hành".
-    "ANDROID_APK_URL": "https://expo.dev/artifacts/eas/idVNP3EEcmmvXPiubD62kZgb1YP6lxAUWY3yr4Ap_8k.apk",
+    "ANDROID_APK_URL": "https://expo.dev/artifacts/eas/NXjXinVajR3RgM4JrQejDoF6f2xsImT70hflej8rJz8.apk",
     // Link tải cho iPhone: link TestFlight công khai (https://testflight.apple.com/join/...), lấy ở
     // App Store Connect → app WujoAgent → TestFlight → nhóm thử nghiệm bên ngoài → Public Link. Khi app đã
     // lên App Store thì đổi thành https://apps.apple.com/app/id6835067140.

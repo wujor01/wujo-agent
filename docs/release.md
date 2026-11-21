@@ -12,7 +12,7 @@ EAS dưới tài khoản Expo `wujor01`, mã định danh `dev.wujo.wujoagent`, 
 | Worker, cấu hình Cloudflare, chép APK sang R2 | Xong (`deploy/cloudflare/`) |
 | CI/CD trên GitHub Actions | Xong (`.github/workflows/`); cần thêm secret, xem mục 4b |
 | Dự án EAS `@wujor01/wujoagent` | Xong (`extra.eas.projectId` trong `app/app.json`) |
-| Build APK | Xong bản 1.0.0 (versionCode 1), đã chép sang R2 |
+| Build APK | Xong bản 1.0.0 (versionCode 2, 21/11/2026), đã chép sang R2 |
 | Build iOS | Xong bản 1.0.0, đã lên App Store Connect (app ID `6835067140`) |
 | Link TestFlight công khai | Đã tạo (nhóm Public Beta, `https://testflight.apple.com/join/h1rRPrb7`) và gắn vào nút tải iPhone; build 7 đang chờ Beta App Review, link chỉ tham gia được sau khi được duyệt |
 | Gửi duyệt App Store | **Chưa làm**: thiếu ảnh chụp màn hình và thông tin cho người duyệt |
