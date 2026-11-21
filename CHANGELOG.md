@@ -2,6 +2,12 @@
 
 Mọi thay đổi đáng kể của WujoAgent được ghi ở đây. Bản tiếng Anh: `CHANGELOG.en.md`. Hai file phải đi cùng nhau; trang agent.wujo.dev/changelog được dựng từ chúng.
 
+## [1.0.11] - 2026-11-21
+
+### Thêm
+
+- Nút **Sửa** trên từng máy chủ trong app: đổi tên hiển thị, địa chỉ, cổng hoặc token mà không phải xoá rồi thêm lại. Thư mục gốc đã chọn và cài đặt thông báo được giữ nguyên. Khi lưu, app nối thử bằng thông tin mới; không nối được thì báo lỗi và cho chọn **Vẫn lưu** (hữu ích khi bạn đang ở ngoài mạng của máy chủ). Ô token để trống nghĩa là giữ token cũ.
+
 ## [1.0.10] - 2026-11-19
 
 ### Thêm

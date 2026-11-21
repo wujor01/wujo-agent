@@ -132,6 +132,7 @@ In the app: **Add server** (scan the QR code, or enter IP, port and token) → *
 - The permission mode and model can also be changed on the line above the input box.
 - Send a message while Claude is working: it goes straight into the running turn and Claude reads it at its next step, without waiting for the turn to end.
 - Long-press a session to remove it from the app; Claude's history on the server is not deleted.
+- In the server list, **Edit** changes a server's display name, address, port or token (for example after its IP changed); long-press removes it.
 
 ## VS Code in the browser
 

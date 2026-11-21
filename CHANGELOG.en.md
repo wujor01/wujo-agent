@@ -2,6 +2,12 @@
 
 Every notable change to WujoAgent is recorded here. Vietnamese version: `CHANGELOG.md`. The two files must stay in step; agent.wujo.dev/en/changelog is built from them.
 
+## [1.0.11] - 2026-11-21
+
+### Added
+
+- An **Edit** button on each server in the app: change the display name, address, port or token without removing and re-adding it. The chosen root folder and notification settings are kept. On save the app tries to connect with the new details; if it cannot, it shows the error and offers **Save anyway** (useful when you are outside the server's network). An empty token field keeps the current token.
+
 ## [1.0.10] - 2026-11-19
 
 ### Added

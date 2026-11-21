@@ -132,6 +132,7 @@ Trong app: **Thêm máy chủ** (quét QR, hoặc nhập IP, cổng, token) → 
 - Chế độ quyền và model cũng đổi được ở dòng phía trên ô nhập.
 - Gửi tin trong lúc Claude đang làm việc: tin vào thẳng lượt đang chạy và Claude đọc nó ở bước kế tiếp, không phải chờ hết lượt.
 - Giữ lâu vào một session để gỡ khỏi app; lịch sử của Claude trên máy chủ không bị xoá.
+- Trong danh sách máy chủ, nút **Sửa** đổi tên hiển thị, địa chỉ, cổng hoặc token của máy chủ (ví dụ sau khi IP đổi); giữ lâu để xoá.
 
 ## VS Code trong trình duyệt
 

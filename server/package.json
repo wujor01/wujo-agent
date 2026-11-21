@@ -1,6 +1,6 @@
 {
   "name": "wujoagent",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "scripts": {
     "start": "node bin/wujoagent.js serve",
     "postinstall": "node bin/postinstall.js",
